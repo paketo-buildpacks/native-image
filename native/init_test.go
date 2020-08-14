@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package main
+package native_test
 
 import (
-	"os"
+	"testing"
 
-	"github.com/paketo-buildpacks/libpak"
-	"github.com/paketo-buildpacks/libpak/bard"
-
-	"github.com/paketo-buildpacks/spring-boot-native-image/native"
+	"github.com/sclevine/spec"
+	"github.com/sclevine/spec/report"
 )
 
-func main() {
-	libpak.Main(
-		native.Detect{},
-		native.Build{Logger: bard.NewLogger(os.Stdout)},
-	)
+func TestUnit(t *testing.T) {
+	suite := spec.New("native", spec.Report(report.Terminal{}))
+	suite("Build", testBuild)
+	suite("Detect", testDetect)
+	suite("NativeImage", testNativeImage)
+	suite.Run(t)
 }
