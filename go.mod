@@ -1,6 +1,6 @@
 module github.com/paketo-buildpacks/spring-boot-native-image
 
-go 1.14
+go 1.15
 
 require (
 	github.com/buildpacks/libcnb v1.16.0
