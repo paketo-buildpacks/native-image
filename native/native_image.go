@@ -161,9 +161,8 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			return libcnb.Layer{}, fmt.Errorf("error running build\n%w", err)
 		}
 
-		layer.Cache = true
 		return layer, nil
-	})
+	}, libpak.CacheLayer)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to contribute native-image layer\n%w", err)
 	}
