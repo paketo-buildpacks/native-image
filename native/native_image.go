@@ -150,6 +150,16 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			startClass,
 		)
 
+		if err := n.Executor.Execute(effect.Execution{
+			Command: "native-image",
+			Args:    []string{"--version"},
+			Dir:     layer.Path,
+			Stdout:  n.Logger.BodyWriter(),
+			Stderr:  n.Logger.BodyWriter(),
+		}); err != nil {
+			return libcnb.Layer{}, fmt.Errorf("error running version\n%w", err)
+		}
+
 		n.Logger.Bodyf("Executing native-image %s", strings.Join(arguments, " "))
 		if err := n.Executor.Execute(effect.Execution{
 			Command: "native-image",
