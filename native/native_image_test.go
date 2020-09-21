@@ -106,6 +106,11 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		execution := executor.Calls[0].Arguments[0].(effect.Execution)
 		Expect(execution.Command).To(Equal("native-image"))
+		Expect(execution.Args).To(Equal([]string{"--version"}))
+		Expect(execution.Dir).To(Equal(layer.Path))
+
+		execution = executor.Calls[1].Arguments[0].(effect.Execution)
+		Expect(execution.Command).To(Equal("native-image"))
 		Expect(execution.Args).To(Equal([]string{
 			"test-argument-1",
 			"test-argument-2",
@@ -162,7 +167,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		layer, err = n.Contribute(layer)
 		Expect(err).NotTo(HaveOccurred())
 
-		execution := executor.Calls[0].Arguments[0].(effect.Execution)
+		execution := executor.Calls[1].Arguments[0].(effect.Execution)
 		Expect(execution.Args[4]).To(Equal(strings.Join([]string{
 			ctx.Application.Path,
 			filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
@@ -219,7 +224,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
 			Expect(filepath.Join(ctx.Application.Path, "fixture-marker")).NotTo(BeAnExistingFile())
 
-			execution := executor.Calls[0].Arguments[0].(effect.Execution)
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Command).To(Equal("native-image"))
 			Expect(execution.Args).To(Equal([]string{
 				"test-argument-1",
