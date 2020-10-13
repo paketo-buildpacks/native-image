@@ -7,7 +7,7 @@ require (
 	github.com/heroku/color v0.0.6
 	github.com/magiconair/properties v1.8.4
 	github.com/mattn/go-shellwords v1.0.10
-	github.com/onsi/gomega v1.10.2
+	github.com/onsi/gomega v1.10.3
 	github.com/paketo-buildpacks/libjvm v1.23.0
 	github.com/paketo-buildpacks/libpak v1.46.0
 	github.com/sclevine/spec v1.4.0
