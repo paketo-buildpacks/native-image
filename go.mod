@@ -3,7 +3,7 @@ module github.com/paketo-buildpacks/spring-boot-native-image
 go 1.15
 
 require (
-	github.com/buildpacks/libcnb v1.18.0
+	github.com/buildpacks/libcnb v1.18.1
 	github.com/heroku/color v0.0.6
 	github.com/magiconair/properties v1.8.4
 	github.com/mattn/go-shellwords v1.0.10
