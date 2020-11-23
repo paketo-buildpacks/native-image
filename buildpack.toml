@@ -42,9 +42,9 @@ build       = true
 [[metadata.dependencies]]
 id      = "spring-graalvm-native"
 name    = "Spring GraalVM Native Feature"
-version = "0.8.2"
-uri     = "https://repo.spring.io/milestone/org/springframework/experimental/spring-graalvm-native/0.8.2/spring-graalvm-native-0.8.2.jar"
-sha256  = "66ef492ada1f27407a5f59890246a5538e47b93ac28168be784cd9edbb29964a"
+version = "0.8.3"
+uri     = "https://repo.spring.io/milestone/org/springframework/experimental/spring-graalvm-native/0.8.3-RC1/spring-graalvm-native-0.8.3-RC1.jar"
+sha256  = "06c3239e3676164812e2102bfddb8ff88213cc0dc7be0333fb7e859c29636c3d"
 stacks  = [ "io.buildpacks.stacks.bionic", "io.paketo.stacks.tiny", "org.cloudfoundry.stacks.cflinuxfs3" ]
 
 [[metadata.dependencies.licenses]]
