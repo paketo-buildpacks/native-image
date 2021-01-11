@@ -17,6 +17,7 @@
 package native
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/buildpacks/libcnb"
-	"github.com/heroku/color"
 	"github.com/magiconair/properties"
 	"github.com/mattn/go-shellwords"
 	"github.com/paketo-buildpacks/libpak"
@@ -39,8 +39,6 @@ import (
 type NativeImage struct {
 	ApplicationPath  string
 	Arguments        []string
-	Dependency       libpak.BuildpackDependency
-	DependencyCache  libpak.DependencyCache
 	Executor         effect.Executor
 	LayerContributor libpak.LayerContributor
 	Logger           bard.Logger
@@ -48,13 +46,10 @@ type NativeImage struct {
 	StackID          string
 }
 
-func NewNativeImage(applicationPath string, arguments string, dependency libpak.BuildpackDependency,
-	cache libpak.DependencyCache, manifest *properties.Properties, stackID string,
-	plan *libcnb.BuildpackPlan) (NativeImage, error) {
-
+func NewNativeImage(applicationPath string, arguments string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	var err error
 
-	expected := map[string]interface{}{"dependency": dependency}
+	expected := map[string]interface{}{}
 
 	expected["arguments"], err = shellwords.Parse(arguments)
 	if err != nil {
@@ -69,17 +64,11 @@ func NewNativeImage(applicationPath string, arguments string, dependency libpak.
 	n := NativeImage{
 		ApplicationPath:  applicationPath,
 		Arguments:        expected["arguments"].([]string),
-		Dependency:       dependency,
-		DependencyCache:  cache,
 		Executor:         effect.NewExecutor(),
 		LayerContributor: libpak.NewLayerContributor("Native Image", expected),
 		Manifest:         manifest,
 		StackID:          stackID,
 	}
-
-	entry := dependency.AsBuildpackPlanEntry()
-	entry.Metadata["launch"] = n.Name()
-	plan.Entries = append(plan.Entries, entry)
 
 	return n, nil
 }
@@ -127,15 +116,8 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			cp = append(cp, filepath.Join(n.ApplicationPath, s, l))
 		}
 
-		if !n.hasSpringGraalVMNative(libs) {
-			n.Logger.Header(color.BlueString("%s %s", n.Dependency.Name, n.Dependency.Version))
-
-			artifact, err := n.DependencyCache.Artifact(n.Dependency)
-			if err != nil {
-				return libcnb.Layer{}, fmt.Errorf("unable to get dependency %s\n%w", n.Dependency.ID, err)
-			}
-			defer artifact.Close()
-			cp = append(cp, artifact.Name())
+		if !n.hasSpringNative(libs) {
+			return libcnb.Layer{}, errors.New("application is missing required 'spring-native' dependency")
 		}
 
 		arguments := n.Arguments
@@ -214,8 +196,9 @@ func (NativeImage) Name() string {
 	return "native-image"
 }
 
-func (NativeImage) hasSpringGraalVMNative(libs []string) bool {
-	re := regexp.MustCompile(`spring-graalvm-native-.+\.jar`)
+func (NativeImage) hasSpringNative(libs []string) bool {
+	// matches either spring-native or legacy spring-graalvm-native
+	re := regexp.MustCompile(`spring-(?:graalvm-|)native-.+\.jar`)
 
 	for _, l := range libs {
 		if re.MatchString(l) {

@@ -10,6 +10,8 @@ The buildpack will do the following:
 
 * Creates a GraalVM native image and removes existing bytecode.
 
+This buildpack requires that [Spring Native](https://github.com/spring-projects-experimental/spring-native) is included as an application dependency.
+
 ## Configuration
 | Environment Variable | Description
 | -------------------- | -----------
@@ -28,3 +30,4 @@ The buildpack optionally accepts the following bindings:
 This buildpack is released under version 2.0 of the [Apache License][a].
 
 [a]: http://www.apache.org/licenses/LICENSE-2.0
+[s]: https://github.com/spring-projects-experimental/spring-native

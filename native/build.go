@@ -49,25 +49,9 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
 
-	dr, err := libpak.NewDependencyResolver(context)
-	if err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to create dependency resolver\n%w", err)
-	}
-
-	dc, err := libpak.NewDependencyCache(context)
-	if err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to create dependency cache\n%w", err)
-	}
-	dc.Logger = b.Logger
-
 	args, _ := cr.Resolve("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS")
 
-	dep, err := dr.Resolve("spring-graalvm-native", "")
-	if err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to find dependency\n%w", err)
-	}
-
-	n, err := NewNativeImage(context.Application.Path, args, dep, dc, manifest, context.StackID, result.Plan)
+	n, err := NewNativeImage(context.Application.Path, args, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}
