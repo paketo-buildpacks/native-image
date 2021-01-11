@@ -15,11 +15,3 @@ docker_credentials:
 - registry: gcr.io
   username: _json_key
   password: ${{ secrets.JAVA_GCLOUD_SERVICE_ACCOUNT_KEY }}
-
-dependencies:
-- id:   spring-graalvm-native
-  uses: docker://ghcr.io/paketo-buildpacks/actions/maven-dependency:main
-  with:
-    uri:         https://repo.spring.io/milestone
-    group_id:    org.springframework.experimental
-    artifact_id: spring-graalvm-native
