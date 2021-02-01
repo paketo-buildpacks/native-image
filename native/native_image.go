@@ -37,12 +37,12 @@ import (
 )
 
 type NativeImage struct {
-	ApplicationPath  string
-	Arguments        []string
-	Executor         effect.Executor
-	Logger           bard.Logger
-	Manifest         *properties.Properties
-	StackID          string
+	ApplicationPath string
+	Arguments       []string
+	Executor        effect.Executor
+	Logger          bard.Logger
+	Manifest        *properties.Properties
+	StackID         string
 }
 
 func NewNativeImage(applicationPath string, arguments string, manifest *properties.Properties, stackID string) (NativeImage, error) {
@@ -54,11 +54,11 @@ func NewNativeImage(applicationPath string, arguments string, manifest *properti
 	}
 
 	return NativeImage{
-		ApplicationPath:  applicationPath,
-		Arguments:        args,
-		Executor:         effect.NewExecutor(),
-		Manifest:         manifest,
-		StackID:          stackID,
+		ApplicationPath: applicationPath,
+		Arguments:       args,
+		Executor:        effect.NewExecutor(),
+		Manifest:        manifest,
+		StackID:         stackID,
 	}, nil
 }
 
@@ -95,8 +95,10 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	}
 
 	contributor := libpak.NewLayerContributor("Native Image", map[string]interface{}{
-		"files": files,
+		"files":     files,
 		"arguments": arguments,
+	}, libcnb.LayerTypes{
+		Cache: true,
 	})
 	contributor.Logger = n.Logger
 
@@ -123,7 +125,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		}
 
 		return layer, nil
-	}, libpak.CacheLayer)
+	})
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to contribute native-image layer\n%w", err)
 	}
