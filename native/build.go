@@ -21,9 +21,15 @@ import (
 	"path/filepath"
 
 	"github.com/buildpacks/libcnb"
+	"github.com/heroku/color"
 	"github.com/paketo-buildpacks/libjvm"
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
+)
+
+const (
+	ConfigNativeImageArgs           = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
+	DeprecatedConfigNativeImageArgs = "BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS"
 )
 
 type Build struct {
@@ -31,6 +37,9 @@ type Build struct {
 }
 
 func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
+	b.Logger.Title(context.Buildpack)
+	result := libcnb.NewBuildResult()
+
 	manifest, err := libjvm.NewManifest(context.Application.Path)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
@@ -41,15 +50,26 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, nil
 	}
 
-	b.Logger.Title(context.Buildpack)
-	result := libcnb.NewBuildResult()
-
 	cr, err := libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
+	if _, ok = cr.Resolve(DeprecatedConfigNativeImage); ok {
+		b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
+			DeprecatedConfigNativeImage,
+			ConfigNativeImage,
+		))
+	}
 
-	args, _ := cr.Resolve("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS")
+	args, ok := cr.Resolve(ConfigNativeImageArgs)
+	if !ok {
+		if args, ok = cr.Resolve(DeprecatedConfigNativeImageArgs); ok {
+			b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
+				DeprecatedConfigNativeImageArgs,
+				ConfigNativeImageArgs,
+			))
+		}
+	}
 
 	n, err := NewNativeImage(context.Application.Path, args, manifest, context.StackID)
 	if err != nil {
@@ -71,4 +91,13 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	)
 
 	return result, nil
+}
+
+// todo: move warn method to the logger
+func (b Build) warn(msg string) {
+	b.Logger.Headerf(
+		"\n%s %s\n\n",
+		color.New(color.FgYellow, color.Bold).Sprintf("Warning:"),
+		msg,
+	)
 }

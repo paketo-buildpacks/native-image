@@ -17,6 +17,7 @@
 package native_test
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/buildpacks/libcnb"
 	. "github.com/onsi/gomega"
+	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/sclevine/spec"
 
 	"github.com/paketo-buildpacks/spring-boot-native-image/native"
@@ -35,10 +37,13 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		ctx   libcnb.BuildContext
 		build native.Build
+		out   bytes.Buffer
 	)
 
 	it.Before(func() {
 		var err error
+
+		build.Logger = bard.NewLogger(&out)
 
 		ctx.Application.Path, err = ioutil.TempDir("", "build-application")
 		Expect(err).NotTo(HaveOccurred())
@@ -87,13 +92,46 @@ Start-Class: test-start-class
 		))
 	})
 
-	context("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", func() {
+	context("BP_BOOT_NATIVE_IMAGE", func() {
 		it.Before(func() {
-			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", "test-native-image-argument")).To(Succeed())
+			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE", "true")).To(Succeed())
 		})
 
 		it.After(func() {
-			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS")).To(Succeed())
+			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE")).To(Succeed())
+		})
+
+		it("contributes native image layer and prints a deprecation warning", func() {
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Boot-Layers-Index: layers.idx
+Start-Class: test-start-class
+`), 0644)).To(Succeed())
+
+			result, err := build.Build(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result.Layers).To(HaveLen(1))
+			Expect(result.Layers[0].(native.NativeImage).Arguments).To(BeEmpty())
+			Expect(result.Processes).To(ContainElements(
+				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
+				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
+				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
+			))
+
+			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE has been deprecated. Please use $BP_NATIVE_IMAGE instead."))
+		})
+	})
+
+	context("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "test-native-image-argument")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_NATIVE_IMAGE_BUILD_ARGUMENTS")).To(Succeed())
 		})
 
 		it("contributes native image build arguments", func() {
@@ -110,6 +148,32 @@ Start-Class: test-start-class
 
 			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal([]string{"test-native-image-argument"}))
 		})
+	})
 
+	context("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", "test-native-image-argument")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS")).To(Succeed())
+		})
+
+		it("contributes native image build arguments and prints a deprecation warning", func() {
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Boot-Layers-Index: layers.idx
+Start-Class: test-start-class
+`), 0644)).To(Succeed())
+
+			result, err := build.Build(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal([]string{"test-native-image-argument"}))
+
+			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS has been deprecated. Please use $BP_NATIVE_IMAGE_BUILD_ARGUMENTS instead."))
+		})
 	})
 }

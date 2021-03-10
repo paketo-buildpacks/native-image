@@ -62,11 +62,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		_, _, err = props.Set("Start-Class", "test-start-class")
 		Expect(err).NotTo(HaveOccurred())
-		_, _, err = props.Set("Spring-Boot-Classes", "BOOT-INF/classes/")
-		Expect(err).NotTo(HaveOccurred())
-		_, _, err = props.Set("Spring-Boot-Classpath-Index", "BOOT-INF/classpath.idx")
-		Expect(err).NotTo(HaveOccurred())
-		_, _, err = props.Set("Spring-Boot-Lib", "BOOT-INF/lib/")
+		_, _, err = props.Set("Class-Path", "manifest-class-path")
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "fixture-marker"), []byte{}, 0644)).To(Succeed())
@@ -89,147 +85,47 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.RemoveAll(ctx.Layers.Path)).To(Succeed())
 	})
 
-	context("classpath.idx contains a list of jar", func() {
-		context("neither spring-native nor spring-graalvm-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "test-jar.jar"`), 0644)).To(Succeed())
-			})
-
-			it("fails", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).To(HaveOccurred())
-			})
+	context("CLASSPATH is set", func() {
+		it.Before(func() {
+			Expect(os.Setenv("CLASSPATH", "some-classpath")).To(Succeed())
 		})
 
-		context("spring-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "test-jar.jar"
-- "spring-native-0.8.6-xxxxxx.jar"
-`), 0644)).To(Succeed())
-			})
-
-			it("contributes native image", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).NotTo(HaveOccurred())
-
-				execution := executor.Calls[1].Arguments[0].(effect.Execution)
-				Expect(execution.Args).To(Equal([]string{
-					"test-argument-1",
-					"test-argument-2",
-					fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
-					"-cp",
-					strings.Join([]string{
-						filepath.Join(ctx.Application.Path),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "test-jar.jar"),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "spring-native-0.8.6-xxxxxx.jar"),
-					}, ":"),
-					"test-start-class",
-				}))
-			})
+		it.After(func() {
+			Expect(os.Unsetenv("CLASSPATH")).To(Succeed())
 		})
 
-		context("spring-graalvm-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "test-jar.jar"
-- "spring-graalvm-native-0.8.0-20200729.130845-95.jar"
-`), 0644)).To(Succeed())
-			})
+		it("contributes native image", func() {
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
 
-			it("contributes native image", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).NotTo(HaveOccurred())
-
-				execution := executor.Calls[1].Arguments[0].(effect.Execution)
-				Expect(execution.Args).To(Equal([]string{
-					"test-argument-1",
-					"test-argument-2",
-					fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
-					"-cp",
-					strings.Join([]string{
-						filepath.Join(ctx.Application.Path),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "test-jar.jar"),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "spring-graalvm-native-0.8.0-20200729.130845-95.jar"),
-					}, ":"),
-					"test-start-class",
-				}))
-			})
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"test-argument-1",
+				"test-argument-2",
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
+				"-cp", "some-classpath",
+				"test-start-class",
+			}))
 		})
 	})
 
-	context("classpath.idx contains a list of relative paths to jar", func() {
-		context("has neither spring-native nor spring-graalvm-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "test-jar.jar"`), 0644)).To(Succeed())
-			})
+	context("CLASSPATH is not set", func() {
+		it("contributes native image with Class-Path from manifest", func() {
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
 
-			it("fails", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
-		context("spring-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "some/path/test-jar.jar"
-- "some/path/spring-native-0.8.6-xxxxxx.jar"
-`), 0644)).To(Succeed())
-			})
-
-			it("contributes native image", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).NotTo(HaveOccurred())
-
-				execution := executor.Calls[1].Arguments[0].(effect.Execution)
-				Expect(execution.Args).To(Equal([]string{
-					"test-argument-1",
-					"test-argument-2",
-					fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
-					"-cp",
-					strings.Join([]string{
-						filepath.Join(ctx.Application.Path),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
-						filepath.Join(ctx.Application.Path, "some", "path", "test-jar.jar"),
-						filepath.Join(ctx.Application.Path, "some", "path", "spring-native-0.8.6-xxxxxx.jar"),
-					}, ":"),
-					"test-start-class",
-				}))
-			})
-		})
-
-		context("spring-graalvm-native dependency", func() {
-			it.Before(func() {
-				Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
-- "some/path/test-jar.jar"
-- "some/path/spring-graalvm-native-0.8.0-20200729.130845-95.jar"
-`), 0644)).To(Succeed())
-			})
-
-			it("contributes native image", func() {
-				_, err := nativeImage.Contribute(layer)
-				Expect(err).NotTo(HaveOccurred())
-
-				execution := executor.Calls[1].Arguments[0].(effect.Execution)
-				Expect(execution.Args).To(Equal([]string{
-					"test-argument-1",
-					"test-argument-2",
-					fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
-					"-cp",
-					strings.Join([]string{
-						filepath.Join(ctx.Application.Path),
-						filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
-						filepath.Join(ctx.Application.Path, "some", "path", "test-jar.jar"),
-						filepath.Join(ctx.Application.Path, "some", "path", "spring-graalvm-native-0.8.0-20200729.130845-95.jar"),
-					}, ":"),
-					"test-start-class",
-				}))
-			})
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"test-argument-1",
+				"test-argument-2",
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
+				"-cp",
+				strings.Join([]string{
+					ctx.Application.Path,
+					"manifest-class-path",
+				}, ":"),
+				"test-start-class",
+			}))
 		})
 	})
 
@@ -238,7 +134,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			nativeImage.StackID = libpak.TinyStackID
 		})
 
-		it("contributes native image", func() {
+		it("contributes a static native image executable with dynamic libc", func() {
 			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
 - "test-jar.jar"
 - "spring-graalvm-native-0.8.6-xxxxxx.jar"
@@ -261,10 +157,8 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
 				"-cp",
 				strings.Join([]string{
-					filepath.Join(ctx.Application.Path),
-					filepath.Join(ctx.Application.Path, "BOOT-INF", "classes"),
-					filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "test-jar.jar"),
-					filepath.Join(ctx.Application.Path, "BOOT-INF", "lib", "spring-graalvm-native-0.8.6-xxxxxx.jar"),
+					ctx.Application.Path,
+					"manifest-class-path",
 				}, ":"),
 				"test-start-class",
 			}))

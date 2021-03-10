@@ -35,8 +35,102 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 		detect native.Detect
 	)
 
-	it("fails without BP_BOOT_NATIVE_IMAGE", func() {
-		Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{Pass: false}))
+	context("neither BP_NATIVE_IMAGE nor BP_BOOT_NATIVE_IMAGE are set", func() {
+		it("provides but does not requires native-image-application", func() {
+			Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+				Pass: true,
+				Plans: []libcnb.BuildPlan{
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name:     "jvm-application",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name:     "spring-boot",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+						},
+					},
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name:     "jvm-application",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+						},
+					},
+				},
+			}))
+		})
+	})
+
+	context("$BP_NATIVE_IMAGE", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_NATIVE_IMAGE", "true")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
+		})
+
+		it("provides and requires native-image-application", func() {
+			Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+				Pass: true,
+				Plans: []libcnb.BuildPlan{
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name:     "jvm-application",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name:     "spring-boot",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name: "native-image-application",
+							},
+						},
+					},
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name:     "jvm-application",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name: "native-image-application",
+							},
+						},
+					},
+				},
+			}))
+		})
 	})
 
 	context("$BP_BOOT_NATIVE_IMAGE", func() {
@@ -48,18 +142,17 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE")).To(Succeed())
 		})
 
-		it("passes with BP_BOOT_NATIVE_IMAGE", func() {
+		it("provides and requires native-image-application", func() {
 			Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
 				Pass: true,
 				Plans: []libcnb.BuildPlan{
 					{
 						Provides: []libcnb.BuildPlanProvide{
-							{Name: "spring-boot-native-image"},
+							{Name: "native-image-application"},
 						},
 						Requires: []libcnb.BuildPlanRequire{
 							{
-								Name:     "jdk",
-								Metadata: map[string]interface{}{"native-image": true},
+								Name: "native-image-builder",
 							},
 							{
 								Name:     "jvm-application",
@@ -69,12 +162,30 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								Name:     "spring-boot",
 								Metadata: map[string]interface{}{"native-image": true},
 							},
-							{Name: "spring-boot-native-image"},
+							{
+								Name: "native-image-application",
+							},
+						},
+					},
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name:     "jvm-application",
+								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name: "native-image-application",
+							},
 						},
 					},
 				},
 			}))
 		})
 	})
-
 }
