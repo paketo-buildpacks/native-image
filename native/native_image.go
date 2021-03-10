@@ -17,7 +17,6 @@
 package native
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,7 +32,6 @@ import (
 	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/paketo-buildpacks/libpak/effect"
 	"github.com/paketo-buildpacks/libpak/sherpa"
-	"gopkg.in/yaml.v3"
 )
 
 type NativeImage struct {
@@ -68,24 +66,24 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		return libcnb.Layer{}, fmt.Errorf("manifest does not contain Start-Class")
 	}
 
-	cp, err := n.classpath()
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("failed to compute classpath\n%w", err)
-	}
-
-	if !n.hasSpringNative(cp) {
-		return libcnb.Layer{}, errors.New("application is missing required 'spring-native' dependency")
-	}
-
 	arguments := n.Arguments
 
 	if n.StackID == libpak.TinyStackID {
 		arguments = append(arguments, "-H:+StaticExecutableWithDynamicLibC")
 	}
 
+	cp := os.Getenv("CLASSPATH")
+	if cp == "" {
+		// CLASSPATH should have been done by upstream buildpacks, but just in case
+		cp = n.ApplicationPath
+		if v, ok := n.Manifest.Get("Class-Path"); ok {
+			cp = strings.Join([]string{cp, v}, string(filepath.ListSeparator))
+		}
+	}
+
 	arguments = append(arguments,
 		fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, startClass)),
-		"-cp", strings.Join(cp, ":"),
+		"-cp", cp,
 		startClass,
 	)
 
@@ -161,49 +159,6 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	}
 
 	return layer, nil
-}
-
-func (n NativeImage) classpath() ([]string, error) {
-	cp := []string{n.ApplicationPath}
-
-	classesDir, ok := n.Manifest.Get("Spring-Boot-Classes")
-	if !ok {
-		return nil, fmt.Errorf("manifest does not contain Spring-Boot-Classes")
-	}
-	cp = append(cp, filepath.Join(n.ApplicationPath, classesDir))
-
-	classpathIdx, ok := n.Manifest.Get("Spring-Boot-Classpath-Index")
-	if !ok {
-		return nil, fmt.Errorf("manifest does not contain Spring-Boot-Classpath-Index")
-	}
-
-	file := filepath.Join(n.ApplicationPath, classpathIdx)
-	in, err := os.Open(filepath.Join(n.ApplicationPath, classpathIdx))
-	if err != nil {
-		return nil, fmt.Errorf("unable to open %s\n%w", file, err)
-	}
-	defer in.Close()
-
-	var libs []string
-	if err := yaml.NewDecoder(in).Decode(&libs); err != nil {
-		return nil, fmt.Errorf("unable to decode %s\n%w", file, err)
-	}
-
-	libDir, ok := n.Manifest.Get("Spring-Boot-Lib")
-	if !ok {
-		return nil, fmt.Errorf("manifest does not contain Spring-Boot-Lib")
-	}
-
-	for _, l := range libs {
-		if dir, _ := filepath.Split(l); dir == "" {
-			// In Spring Boot version 2.3.0.M4 -> 2.4.2 classpath.idx contains a list of jars
-			cp = append(cp, filepath.Join(n.ApplicationPath, libDir, l))
-		} else {
-			// In Spring Boot version <= 2.3.0.M3 or >= 2.4.2 classpath.idx contains a list of relative paths to jars
-			cp = append(cp, filepath.Join(n.ApplicationPath, l))
-		}
-	}
-	return cp, nil
 }
 
 func (NativeImage) Name() string {

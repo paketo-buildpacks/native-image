@@ -18,9 +18,20 @@ package native
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/buildpacks/libcnb"
 	"github.com/paketo-buildpacks/libpak"
+)
+
+const (
+	ConfigNativeImage           = "BP_NATIVE_IMAGE"
+	DeprecatedConfigNativeImage = "BP_BOOT_NATIVE_IMAGE"
+
+	PlatEntryNativeImage        = "native-image-application"
+	PlanEntryNativeImageBuilder = "native-image-builder"
+	PlanEntryJVMApplication     = "jvm-application"
+	PlanEntrySpringBoot         = "spring-boot"
 )
 
 type Detect struct{}
@@ -31,33 +42,76 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 		return libcnb.DetectResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
 
-	if _, ok := cr.Resolve("BP_BOOT_NATIVE_IMAGE"); !ok {
-		return libcnb.DetectResult{Pass: false}, nil
-	}
-
-	return libcnb.DetectResult{
+	result := libcnb.DetectResult{
 		Pass: true,
 		Plans: []libcnb.BuildPlan{
 			{
 				Provides: []libcnb.BuildPlanProvide{
-					{Name: "spring-boot-native-image"},
+					{
+						Name: PlatEntryNativeImage,
+					},
 				},
 				Requires: []libcnb.BuildPlanRequire{
 					{
-						Name:     "jdk",
+						Name: PlanEntryNativeImageBuilder,
+					},
+					{
+						Name:     PlanEntryJVMApplication,
 						Metadata: map[string]interface{}{"native-image": true},
 					},
 					{
-						Name:     "jvm-application",
+						Name:     PlanEntrySpringBoot,
 						Metadata: map[string]interface{}{"native-image": true},
+					},
+				},
+			},
+			{
+				Provides: []libcnb.BuildPlanProvide{
+					{
+						Name: PlatEntryNativeImage,
+					},
+				},
+				Requires: []libcnb.BuildPlanRequire{
+					{
+						Name: PlanEntryNativeImageBuilder,
 					},
 					{
-						Name:     "spring-boot",
+						Name:     PlanEntryJVMApplication,
 						Metadata: map[string]interface{}{"native-image": true},
 					},
-					{Name: "spring-boot-native-image"},
 				},
 			},
 		},
-	}, nil
+	}
+
+	if ok, err := d.nativeImageEnabled(cr); err != nil {
+		return libcnb.DetectResult{}, nil
+	} else if !ok {
+		// still participates if a downstream buildpack requires native-image-applications
+		return result, nil
+	}
+
+	for i := range result.Plans {
+		result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
+			Name: PlatEntryNativeImage,
+		})
+	}
+
+	return result, nil
+}
+
+func (d Detect) nativeImageEnabled(cr libpak.ConfigurationResolver) (bool, error) {
+	if val, ok := cr.Resolve(ConfigNativeImage); ok {
+		enable, err := strconv.ParseBool(val)
+		if err != nil {
+			return false, fmt.Errorf(
+				"invalid value '%s' for key '%s': expected one of [1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False]",
+				val,
+				ConfigNativeImage,
+			)
+		}
+		return enable, nil
+	}
+	_, ok := cr.Resolve(DeprecatedConfigNativeImage)
+	return ok, nil
 }

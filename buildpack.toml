@@ -15,8 +15,8 @@
 api = "0.5"
 
 [buildpack]
-id       = "paketo-buildpacks/spring-boot-native-image"
-name     = "Paketo Spring Boot Native Image Buildpack"
+id       = "paketo-buildpacks/native-image"
+name     = "Paketo Native Image Buildpack"
 version  = "{{.version}}"
 homepage = "https://github.com/paketo-buildpacks/spring-boot-native-image"
 
@@ -30,13 +30,13 @@ id = "io.paketo.stacks.tiny"
 id = "org.cloudfoundry.stacks.cflinuxfs3"
 
 [[metadata.configurations]]
-name        = "BP_BOOT_NATIVE_IMAGE"
-description = "the build to create a native image (requires GraalVM)"
+name        = "BP_NATIVE_IMAGE"
+description = "enable native image build"
 build       = true
 
 [[metadata.configurations]]
-name        = "BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS"
-description = "the arguments to pass to the native-image command"
+name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
+description = "arguments to pass to the native-image command"
 build       = true
 
 [metadata]
