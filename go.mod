@@ -1,4 +1,4 @@
-module github.com/paketo-buildpacks/spring-boot-native-image
+module github.com/paketo-buildpacks/native-image
 
 go 1.15
 
@@ -12,5 +12,4 @@ require (
 	github.com/paketo-buildpacks/libpak v1.51.0
 	github.com/sclevine/spec v1.4.0
 	github.com/stretchr/testify v1.7.0
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
