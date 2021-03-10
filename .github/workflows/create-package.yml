@@ -150,7 +150,7 @@ jobs:
                     --format "${FORMAT}"
                 fi
               env:
-                PACKAGE: gcr.io/paketo-buildpacks/spring-boot-native-image
+                PACKAGE: gcr.io/paketo-buildpacks/native-image
                 PUBLISH: "true"
                 VERSION: ${{ steps.version.outputs.version }}
             - name: Update release with digest
@@ -178,7 +178,7 @@ jobs:
             - if: ${{ true }}
               uses: docker://ghcr.io/buildpacks/actions/registry/request-add-entry:4.0.1
               with:
-                address: gcr.io/paketo-buildpacks/spring-boot-native-image@${{ steps.package.outputs.digest }}
-                id: paketo-buildpacks/spring-boot-native-image
+                address: gcr.io/paketo-buildpacks/native-image@${{ steps.package.outputs.digest }}
+                id: paketo-buildpacks/native-image
                 token: ${{ secrets.JAVA_GITHUB_TOKEN }}
                 version: ${{ steps.version.outputs.version }}

@@ -33,7 +33,7 @@ import (
 	"github.com/sclevine/spec"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/paketo-buildpacks/spring-boot-native-image/native"
+	"github.com/paketo-buildpacks/native-image/native"
 )
 
 func testNativeImage(t *testing.T, context spec.G, it spec.S) {

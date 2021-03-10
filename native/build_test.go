@@ -28,7 +28,7 @@ import (
 	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/sclevine/spec"
 
-	"github.com/paketo-buildpacks/spring-boot-native-image/native"
+	"github.com/paketo-buildpacks/native-image/native"
 )
 
 func testBuild(t *testing.T, context spec.G, it spec.S) {

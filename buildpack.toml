@@ -18,7 +18,7 @@ api = "0.5"
 id       = "paketo-buildpacks/native-image"
 name     = "Paketo Native Image Buildpack"
 version  = "{{.version}}"
-homepage = "https://github.com/paketo-buildpacks/spring-boot-native-image"
+homepage = "https://github.com/paketo-buildpacks/native-image"
 
 [[stacks]]
 id = "io.buildpacks.stacks.bionic"
