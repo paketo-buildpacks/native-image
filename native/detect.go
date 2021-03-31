@@ -88,7 +88,7 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 		return libcnb.DetectResult{}, nil
 	} else if !ok {
 		// still participates if a downstream buildpack requires native-image-applications
-		return result, nil
+		return result, err
 	}
 
 	for i := range result.Plans {
