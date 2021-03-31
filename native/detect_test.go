@@ -78,58 +78,125 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 	})
 
 	context("$BP_NATIVE_IMAGE", func() {
-		it.Before(func() {
-			Expect(os.Setenv("BP_NATIVE_IMAGE", "true")).To(Succeed())
-		})
+		context("true", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_NATIVE_IMAGE", "true")).To(Succeed())
+			})
 
-		it.After(func() {
-			Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
-		})
+			it.After(func() {
+				Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
+			})
 
-		it("provides and requires native-image-application", func() {
-			Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
-				Pass: true,
-				Plans: []libcnb.BuildPlan{
-					{
-						Provides: []libcnb.BuildPlanProvide{
-							{Name: "native-image-application"},
+			it("provides and requires native-image-application", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
 						},
-						Requires: []libcnb.BuildPlanRequire{
-							{
-								Name: "native-image-builder",
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
 							},
-							{
-								Name:     "jvm-application",
-								Metadata: map[string]interface{}{"native-image": true},
-							},
-							{
-								Name:     "spring-boot",
-								Metadata: map[string]interface{}{"native-image": true},
-							},
-							{
-								Name: "native-image-application",
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
 							},
 						},
 					},
-					{
-						Provides: []libcnb.BuildPlanProvide{
-							{Name: "native-image-application"},
+				}))
+			})
+		})
+
+		context("false", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_NATIVE_IMAGE", "false")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
+			})
+
+			it("provides but does not requires native-image-application", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+							},
 						},
-						Requires: []libcnb.BuildPlanRequire{
-							{
-								Name: "native-image-builder",
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
 							},
-							{
-								Name:     "jvm-application",
-								Metadata: map[string]interface{}{"native-image": true},
-							},
-							{
-								Name: "native-image-application",
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
 							},
 						},
 					},
-				},
-			}))
+				}))
+			})
+		})
+
+		context("not a bool", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_NATIVE_IMAGE", "foo")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
+			})
+
+			it("errors", func() {
+				_, err := detect.Detect(ctx)
+				Expect(err).To(HaveOccurred())
+			})
 		})
 	})
 

@@ -85,10 +85,10 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 	}
 
 	if ok, err := d.nativeImageEnabled(cr); err != nil {
-		return libcnb.DetectResult{}, nil
+		return libcnb.DetectResult{}, err
 	} else if !ok {
 		// still participates if a downstream buildpack requires native-image-applications
-		return result, err
+		return result, nil
 	}
 
 	for i := range result.Plans {
