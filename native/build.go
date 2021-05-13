@@ -45,16 +45,11 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
 	}
 
-	_, ok := manifest.Get("Spring-Boot-Version")
-	if !ok {
-		return libcnb.BuildResult{}, nil
-	}
-
 	cr, err := libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
-	if _, ok = cr.Resolve(DeprecatedConfigNativeImage); ok {
+	if _, ok := cr.Resolve(DeprecatedConfigNativeImage); ok {
 		b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
 			DeprecatedConfigNativeImage,
 			ConfigNativeImage,

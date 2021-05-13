@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/buildpacks/libcnb"
@@ -163,17 +162,4 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 
 func (NativeImage) Name() string {
 	return "native-image"
-}
-
-func (NativeImage) hasSpringNative(libs []string) bool {
-	// matches either spring-native or legacy spring-graalvm-native
-	re := regexp.MustCompile(`spring-(?:graalvm-|)native-.+\.jar`)
-
-	for _, l := range libs {
-		if re.MatchString(l) {
-			return true
-		}
-	}
-
-	return false
 }
