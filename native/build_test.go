@@ -88,7 +88,7 @@ Start-Class: test-start-class
 		Expect(result.Processes).To(ContainElements(
 			libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
 			libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-			libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
+			libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true, Default: true},
 		))
 	})
 
@@ -118,7 +118,7 @@ Start-Class: test-start-class
 			Expect(result.Processes).To(ContainElements(
 				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
 				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
+				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true, Default: true},
 			))
 
 			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE has been deprecated. Please use $BP_NATIVE_IMAGE instead."))

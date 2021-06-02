@@ -82,7 +82,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	result.Processes = append(result.Processes,
 		libcnb.Process{Type: "native-image", Command: command, Direct: true},
 		libcnb.Process{Type: "task", Command: command, Direct: true},
-		libcnb.Process{Type: "web", Command: command, Direct: true},
+		libcnb.Process{Type: "web", Command: command, Direct: true, Default: true},
 	)
 
 	return result, nil
