@@ -26,3 +26,4 @@ This buildpack is released under version 2.0 of the [Apache License][a].
 [a]: http://www.apache.org/licenses/LICENSE-2.0
 [native-image]: https://www.graalvm.org/reference-manual/native-image/
 [bp/java-native-image]: https://github.com/paketo-buildpacks/java-native-image
+
