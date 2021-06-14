@@ -8,8 +8,8 @@ if [ "${STRIP:-false}" != "false" ]; then
   strip bin/main
 fi
 
-if [ "${COMPRESS:-false}" != "false" ]; then
-  upx -q -9 bin/main
+if [ "${COMPRESS:-none}" != "none" ]; then
+  $COMPRESS bin/main
 fi
 
 ln -fs main bin/build
