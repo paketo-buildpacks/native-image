@@ -68,11 +68,13 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "fixture-marker"), []byte{}, 0644)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "BOOT-INF"), 0755)).To(Succeed())
 
-		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", props, ctx.StackID)
+		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "none", props, ctx.StackID)
 		Expect(err).NotTo(HaveOccurred())
 		nativeImage.Executor = executor
 
-		executor.On("Execute", mock.Anything).Run(func(args mock.Arguments) {
+		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+			return e.Command == "native-image"
+		})).Run(func(args mock.Arguments) {
 			Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte{}, 0644)).To(Succeed())
 		}).Return(nil)
 
@@ -126,6 +128,64 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 				}, ":"),
 				"test-start-class",
 			}))
+		})
+	})
+
+	context("upx compression is used", func() {
+		it("contributes native image and runs compression", func() {
+			nativeImage.Compressor = "upx"
+
+			executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "upx"
+			})).Run(func(args mock.Arguments) {
+				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("upx-compressed"), 0644)).To(Succeed())
+			}).Return(nil)
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Command).To(Equal("native-image"))
+
+			execution = executor.Calls[2].Arguments[0].(effect.Execution)
+			Expect(execution.Command).To(Equal("upx"))
+
+			bin := filepath.Join(layer.Path, "test-start-class")
+			Expect(bin).To(BeARegularFile())
+
+			data, err := ioutil.ReadFile(bin)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(data).To(ContainSubstring("upx-compressed"))
+		})
+	})
+
+	context("gzexe compression is used", func() {
+		it("contributes native image and runs compression", func() {
+			nativeImage.Compressor = "gzexe"
+
+			executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "gzexe"
+			})).Run(func(args mock.Arguments) {
+				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("gzexe-compressed"), 0644)).To(Succeed())
+				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class~"), []byte("original"), 0644)).To(Succeed())
+			}).Return(nil)
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Command).To(Equal("native-image"))
+
+			execution = executor.Calls[2].Arguments[0].(effect.Execution)
+			Expect(execution.Command).To(Equal("gzexe"))
+
+			bin := filepath.Join(layer.Path, "test-start-class")
+			Expect(bin).To(BeARegularFile())
+
+			data, err := ioutil.ReadFile(bin)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(data).To(ContainSubstring("gzexe-compressed"))
+			Expect(filepath.Join(layer.Path, "test-start-class~")).ToNot(BeAnExistingFile())
 		})
 	})
 

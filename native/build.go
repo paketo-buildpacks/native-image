@@ -30,6 +30,9 @@ import (
 const (
 	ConfigNativeImageArgs           = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
 	DeprecatedConfigNativeImageArgs = "BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS"
+	CompressorUpx                   = "upx"
+	CompressorGzexe                 = "gzexe"
+	CompressorNone                  = "none"
 )
 
 type Build struct {
@@ -66,7 +69,17 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, manifest, context.StackID)
+	compressor, ok := cr.Resolve(BinaryCompressionMethod)
+	if !ok {
+		compressor = CompressorNone
+	} else if ok {
+		if compressor != CompressorUpx && compressor != CompressorGzexe && compressor != CompressorNone {
+			b.warn(fmt.Sprintf("Requested compression method [%s] is unknown, no compression will be performed", compressor))
+			compressor = CompressorNone
+		}
+	}
+
+	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}

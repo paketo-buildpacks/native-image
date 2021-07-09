@@ -27,11 +27,13 @@ import (
 const (
 	ConfigNativeImage           = "BP_NATIVE_IMAGE"
 	DeprecatedConfigNativeImage = "BP_BOOT_NATIVE_IMAGE"
+	BinaryCompressionMethod     = "BP_BINARY_COMPRESSION_METHOD"
 
-	PlatEntryNativeImage        = "native-image-application"
+	PlanEntryNativeImage        = "native-image-application"
 	PlanEntryNativeImageBuilder = "native-image-builder"
 	PlanEntryJVMApplication     = "jvm-application"
 	PlanEntrySpringBoot         = "spring-boot"
+	PlanEntryUpx                = "upx"
 )
 
 type Detect struct{}
@@ -48,7 +50,7 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 			{
 				Provides: []libcnb.BuildPlanProvide{
 					{
-						Name: PlatEntryNativeImage,
+						Name: PlanEntryNativeImage,
 					},
 				},
 				Requires: []libcnb.BuildPlanRequire{
@@ -68,7 +70,7 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 			{
 				Provides: []libcnb.BuildPlanProvide{
 					{
-						Name: PlatEntryNativeImage,
+						Name: PlanEntryNativeImage,
 					},
 				},
 				Requires: []libcnb.BuildPlanRequire{
@@ -86,18 +88,31 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 
 	if ok, err := d.nativeImageEnabled(cr); err != nil {
 		return libcnb.DetectResult{}, err
-	} else if !ok {
-		// still participates if a downstream buildpack requires native-image-applications
-		return result, nil
+	} else if ok {
+		for i := range result.Plans {
+			result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
+				Name: PlanEntryNativeImage,
+			})
+		}
 	}
 
-	for i := range result.Plans {
-		result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
-			Name: PlatEntryNativeImage,
-		})
+	if d.upxCompressionEnabled(cr) {
+		for i := range result.Plans {
+			result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
+				Name: PlanEntryUpx,
+			})
+		}
 	}
 
+	// still participates if a downstream buildpack requires native-image-applications or upx
 	return result, nil
+}
+
+func (d Detect) upxCompressionEnabled(cr libpak.ConfigurationResolver) bool {
+	if val, ok := cr.Resolve(BinaryCompressionMethod); ok {
+		return val == CompressorUpx
+	}
+	return false
 }
 
 func (d Detect) nativeImageEnabled(cr libpak.ConfigurationResolver) (bool, error) {
