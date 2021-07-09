@@ -200,6 +200,246 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 		})
 	})
 
+	context("$BP_BINARY_COMPRESSION_METHOD", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_NATIVE_IMAGE", "true")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_NATIVE_IMAGE")).To(Succeed())
+		})
+
+		context("upx", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_BINARY_COMPRESSION_METHOD", "upx")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_BINARY_COMPRESSION_METHOD")).To(Succeed())
+			})
+
+			it("requires upx", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+								{
+									Name: "upx",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+								{
+									Name: "upx",
+								},
+							},
+						},
+					},
+				}))
+			})
+		})
+
+		context("gzexe", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_BINARY_COMPRESSION_METHOD", "gzexe")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_BINARY_COMPRESSION_METHOD")).To(Succeed())
+			})
+
+			it("no additional provides or requires", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+					},
+				}))
+			})
+		})
+
+		context("none", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_BINARY_COMPRESSION_METHOD", "none")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_BINARY_COMPRESSION_METHOD")).To(Succeed())
+			})
+
+			it("no additional provides or requires", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+					},
+				}))
+			})
+		})
+
+		context("not a supported method", func() {
+			it.Before(func() {
+				Expect(os.Setenv("BP_BINARY_COMPRESSION_METHOD", "foo")).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Unsetenv("BP_BINARY_COMPRESSION_METHOD")).To(Succeed())
+			})
+
+			it("ignore and no additional provides or requires", func() {
+				Expect(detect.Detect(ctx)).To(Equal(libcnb.DetectResult{
+					Pass: true,
+					Plans: []libcnb.BuildPlan{
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name:     "spring-boot",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name:     "jvm-application",
+									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+					},
+				}))
+			})
+		})
+	})
+
 	context("$BP_BOOT_NATIVE_IMAGE", func() {
 		it.Before(func() {
 			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE", "true")).To(Succeed())

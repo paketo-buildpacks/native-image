@@ -40,9 +40,10 @@ type NativeImage struct {
 	Logger          bard.Logger
 	Manifest        *properties.Properties
 	StackID         string
+	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, manifest *properties.Properties, stackID string) (NativeImage, error) {
+func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	var err error
 
 	args, err := shellwords.Parse(arguments)
@@ -56,6 +57,7 @@ func NewNativeImage(applicationPath string, arguments string, manifest *properti
 		Executor:        effect.NewExecutor(),
 		Manifest:        manifest,
 		StackID:         stackID,
+		Compressor:      compressor,
 	}, nil
 }
 
@@ -92,8 +94,9 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	}
 
 	contributor := libpak.NewLayerContributor("Native Image", map[string]interface{}{
-		"files":     files,
-		"arguments": arguments,
+		"files":       files,
+		"arguments":   arguments,
+		"compression": n.Compressor,
 	}, libcnb.LayerTypes{
 		Cache: true,
 	})
@@ -119,6 +122,34 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			Stderr:  n.Logger.InfoWriter(),
 		}); err != nil {
 			return libcnb.Layer{}, fmt.Errorf("error running build\n%w", err)
+		}
+
+		if n.Compressor == CompressorUpx {
+			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
+			if err := n.Executor.Execute(effect.Execution{
+				Command: "upx",
+				Args:    []string{"-q", "-9", filepath.Join(layer.Path, startClass)},
+				Dir:     layer.Path,
+				Stdout:  n.Logger.InfoWriter(),
+				Stderr:  n.Logger.InfoWriter(),
+			}); err != nil {
+				return libcnb.Layer{}, fmt.Errorf("error compressing\n%w", err)
+			}
+		} else if n.Compressor == CompressorGzexe {
+			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
+			if err := n.Executor.Execute(effect.Execution{
+				Command: "gzexe",
+				Args:    []string{filepath.Join(layer.Path, startClass)},
+				Dir:     layer.Path,
+				Stdout:  n.Logger.InfoWriter(),
+				Stderr:  n.Logger.InfoWriter(),
+			}); err != nil {
+				return libcnb.Layer{}, fmt.Errorf("error compressing\n%w", err)
+			}
+
+			if err := os.Remove(filepath.Join(layer.Path, fmt.Sprintf("%s~", startClass))); err != nil {
+				return libcnb.Layer{}, fmt.Errorf("error removing\n%w", err)
+			}
 		}
 
 		return layer, nil
