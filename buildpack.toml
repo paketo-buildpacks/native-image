@@ -33,7 +33,7 @@ id = "io.buildpacks.stacks.bionic"
 id = "io.paketo.stacks.tiny"
 
 [[stacks]]
-id = "org.cloudfoundry.stacks.cflinuxfs3"
+id = "*"
 
 [[metadata.configurations]]
 name        = "BP_NATIVE_IMAGE"
