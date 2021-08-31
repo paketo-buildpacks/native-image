@@ -22,7 +22,7 @@ The buildpack will do the following:
 | Environment Variable               | Description                                                                                   |
 | ---------------------------------- | --------------------------------------------------------------------------------------------- |
 | `$BP_NATIVE_IMAGE`                 | Whether to build a native image from the application.  Defaults to false.                     |
-| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS` | Arguments to pass to the `native-image` command.                                              |
+| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS` | Arguments to pass to directly to the `native-image` command. These arguments must be valid and correctly formed or the `native-image` command will fail. |
 | `$BP_BINARY_COMPRESSION_METHOD`    | Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe` |
 
 ### Compression Caveats
