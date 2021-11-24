@@ -18,6 +18,7 @@ package native_test
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,6 +29,7 @@ import (
 	"github.com/magiconair/properties"
 	. "github.com/onsi/gomega"
 	"github.com/paketo-buildpacks/libpak"
+	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/paketo-buildpacks/libpak/effect"
 	"github.com/paketo-buildpacks/libpak/effect/mocks"
 	"github.com/sclevine/spec"
@@ -69,13 +71,23 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "BOOT-INF"), 0755)).To(Succeed())
 
 		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "none", props, ctx.StackID)
+		nativeImage.Logger = bard.NewLogger(io.Discard)
 		Expect(err).NotTo(HaveOccurred())
 		nativeImage.Executor = executor
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
-			return e.Command == "native-image"
+			return e.Command == "native-image" && len(e.Args) == 1 && e.Args[0] == "--version"
 		})).Run(func(args mock.Arguments) {
-			Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte{}, 0644)).To(Succeed())
+			exec := args.Get(0).(effect.Execution)
+			_, err := exec.Stdout.Write([]byte("1.2.3"))
+			Expect(err).To(Succeed())
+		}).Return(nil)
+
+		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+			return e.Command == "native-image" && len(e.Args) == 6 && e.Args[0] == "test-argument-1"
+		})).Run(func(args mock.Arguments) {
+			exec := args.Get(0).(effect.Execution)
+			Expect(ioutil.WriteFile(filepath.Join(layer.Path, exec.Args[5]), []byte{}, 0644)).To(Succeed())
 		}).Return(nil)
 
 		layer, err = ctx.Layers.Layer("test-layer")
@@ -127,6 +139,35 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 					"manifest-class-path",
 				}, ":"),
 				"test-start-class",
+			}))
+		})
+	})
+
+	context("Not a Spring Boot app", func() {
+		it.Before(func() {
+			// there won't be a Start-Class
+			props.Delete("Start-Class")
+
+			// we do expect a Main-Class
+			_, _, err := props.Set("Main-Class", "test-main-class")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		it.Focus("contributes native image using Main-Class", func() {
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"test-argument-1",
+				"test-argument-2",
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-main-class")),
+				"-cp",
+				strings.Join([]string{
+					ctx.Application.Path,
+					"manifest-class-path",
+				}, ":"),
+				"test-main-class",
 			}))
 		})
 	})

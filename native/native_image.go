@@ -62,9 +62,9 @@ func NewNativeImage(applicationPath string, arguments string, compressor string,
 }
 
 func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
-	startClass, ok := n.Manifest.Get("Start-Class")
-	if !ok {
-		return libcnb.Layer{}, fmt.Errorf("manifest does not contain Start-Class")
+	startClass, err := findStartOrMainClass(n.Manifest)
+	if err != nil {
+		return libcnb.Layer{}, fmt.Errorf("unable to find required manifest property\n%w", err)
 	}
 
 	arguments := n.Arguments

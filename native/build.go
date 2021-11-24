@@ -22,6 +22,7 @@ import (
 
 	"github.com/buildpacks/libcnb"
 	"github.com/heroku/color"
+	"github.com/magiconair/properties"
 	"github.com/paketo-buildpacks/libjvm"
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
@@ -86,9 +87,9 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	n.Logger = b.Logger
 	result.Layers = append(result.Layers, n)
 
-	startClass, ok := manifest.Get("Start-Class")
-	if !ok {
-		return libcnb.BuildResult{}, fmt.Errorf("manifest does not contain Start-Class")
+	startClass, err := findStartOrMainClass(manifest)
+	if err != nil {
+		return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
 	}
 
 	command := filepath.Join(context.Application.Path, startClass)
@@ -108,4 +109,15 @@ func (b Build) warn(msg string) {
 		color.New(color.FgYellow, color.Bold).Sprintf("Warning:"),
 		msg,
 	)
+}
+
+func findStartOrMainClass(manifest *properties.Properties) (string, error) {
+	startClass, ok := manifest.Get("Start-Class")
+	if !ok {
+		startClass, ok = manifest.Get("Main-Class")
+		if !ok {
+			return "", fmt.Errorf("unable to read Start-Class or Main-Class from MANIFEST.MF")
+		}
+	}
+	return startClass, nil
 }
