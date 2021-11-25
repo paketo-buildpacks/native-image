@@ -3,7 +3,7 @@ module github.com/paketo-buildpacks/native-image
 go 1.15
 
 require (
-	github.com/buildpacks/libcnb v1.25.0
+	github.com/buildpacks/libcnb v1.25.1
 	github.com/heroku/color v0.0.6
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-shellwords v1.0.12
