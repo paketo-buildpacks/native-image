@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/paketo-buildpacks/libpak/effect"
+	"github.com/paketo-buildpacks/libpak/sbom"
+
 	"github.com/buildpacks/libcnb"
 	"github.com/heroku/color"
 	"github.com/magiconair/properties"
@@ -37,7 +40,8 @@ const (
 )
 
 type Build struct {
-	Logger bard.Logger
+	Logger      bard.Logger
+	SBOMScanner sbom.SBOMScanner
 }
 
 func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
@@ -98,6 +102,13 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		libcnb.Process{Type: "task", Command: command, Direct: true},
 		libcnb.Process{Type: "web", Command: command, Direct: true, Default: true},
 	)
+
+	if b.SBOMScanner == nil {
+		b.SBOMScanner = sbom.NewSyftCLISBOMScanner(context.Layers, effect.NewExecutor(), b.Logger)
+	}
+	if err := b.SBOMScanner.ScanLaunch(context.Application.Path, libcnb.SyftJSON, libcnb.CycloneDXJSON); err != nil {
+		return libcnb.BuildResult{}, fmt.Errorf("unable to create Build SBoM \n%w", err)
+	}
 
 	return result, nil
 }
