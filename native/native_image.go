@@ -38,33 +38,44 @@ type NativeImage struct {
 	Arguments       []string
 	Executor        effect.Executor
 	Logger          bard.Logger
-	Manifest        *properties.Properties
+	nativeMain 		nativeMain
 	StackID         string
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string) (NativeImage, error) {
+func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string, ops ...NativeImageOption) (NativeImage, error) {
 	var err error
-
+	var nativeMain nativeMain
 	args, err := shellwords.Parse(arguments)
 	if err != nil {
 		return NativeImage{}, fmt.Errorf("unable to parse arguments from %s\n%w", arguments, err)
+	}
+
+	nativeImageOpts := &options{}
+	for _, op := range ops {
+		if err := op(nativeImageOpts); err != nil {
+			return NativeImage{}, err
+		}
+	}
+	nativeMain = newStartClassMain(applicationPath, manifest)
+	if nativeImageOpts.jarFileName != "" {
+		nativeMain = newJarFileMain(applicationPath, nativeImageOpts.jarFileName)
 	}
 
 	return NativeImage{
 		ApplicationPath: applicationPath,
 		Arguments:       args,
 		Executor:        effect.NewExecutor(),
-		Manifest:        manifest,
+		nativeMain:      nativeMain,
 		StackID:         stackID,
 		Compressor:      compressor,
 	}, nil
 }
 
 func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
-	startClass, err := findStartOrMainClass(n.Manifest)
+	name, err := n.nativeMain.Name()
 	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to find required manifest property\n%w", err)
+		return libcnb.Layer{}, fmt.Errorf("unable to determine main class\n%w", err)
 	}
 
 	arguments := n.Arguments
@@ -73,20 +84,13 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		arguments = append(arguments, "-H:+StaticExecutableWithDynamicLibC")
 	}
 
-	cp := os.Getenv("CLASSPATH")
-	if cp == "" {
-		// CLASSPATH should have been done by upstream buildpacks, but just in case
-		cp = n.ApplicationPath
-		if v, ok := n.Manifest.Get("Class-Path"); ok {
-			cp = strings.Join([]string{cp, v}, string(filepath.ListSeparator))
-		}
-	}
+	cp := n.nativeMain.ClassPath()
 
 	arguments = append(arguments,
-		fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, startClass)),
+		fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, name)),
 		"-cp", cp,
-		startClass,
 	)
+	arguments = append(arguments, n.nativeMain.Arguments()...)
 
 	files, err := sherpa.NewFileListing(n.ApplicationPath)
 	if err != nil {
@@ -114,6 +118,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		}
 
 		n.Logger.Bodyf("Executing native-image %s", strings.Join(arguments, " "))
+		fmt.Printf("----- ARGUMENTS %s\n", strings.Join(arguments, " "))
 		if err := n.Executor.Execute(effect.Execution{
 			Command: "native-image",
 			Args:    arguments,
@@ -128,7 +133,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
 			if err := n.Executor.Execute(effect.Execution{
 				Command: "upx",
-				Args:    []string{"-q", "-9", filepath.Join(layer.Path, startClass)},
+				Args:    []string{"-q", "-9", filepath.Join(layer.Path, name)},
 				Dir:     layer.Path,
 				Stdout:  n.Logger.InfoWriter(),
 				Stderr:  n.Logger.InfoWriter(),
@@ -139,7 +144,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
 			if err := n.Executor.Execute(effect.Execution{
 				Command: "gzexe",
-				Args:    []string{filepath.Join(layer.Path, startClass)},
+				Args:    []string{filepath.Join(layer.Path, name)},
 				Dir:     layer.Path,
 				Stdout:  n.Logger.InfoWriter(),
 				Stderr:  n.Logger.InfoWriter(),
@@ -147,7 +152,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 				return libcnb.Layer{}, fmt.Errorf("error compressing\n%w", err)
 			}
 
-			if err := os.Remove(filepath.Join(layer.Path, fmt.Sprintf("%s~", startClass))); err != nil {
+			if err := os.Remove(filepath.Join(layer.Path, fmt.Sprintf("%s~", name))); err != nil {
 				return libcnb.Layer{}, fmt.Errorf("error removing\n%w", err)
 			}
 		}
@@ -170,14 +175,14 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		}
 	}
 
-	src := filepath.Join(layer.Path, startClass)
+	src := filepath.Join(layer.Path, name)
 	in, err := os.Open(src)
 	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", filepath.Join(layer.Path, startClass), err)
+		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", filepath.Join(layer.Path, name), err)
 	}
 	defer in.Close()
 
-	dst := filepath.Join(n.ApplicationPath, startClass)
+	dst := filepath.Join(n.ApplicationPath, name)
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", dst, err)

@@ -19,10 +19,8 @@ package native
 import (
 	"fmt"
 	"path/filepath"
-
 	"github.com/paketo-buildpacks/libpak/effect"
 	"github.com/paketo-buildpacks/libpak/sbom"
-
 	"github.com/buildpacks/libcnb"
 	"github.com/heroku/color"
 	"github.com/magiconair/properties"
@@ -47,16 +45,27 @@ type Build struct {
 func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	b.Logger.Title(context.Buildpack)
 	result := libcnb.NewBuildResult()
-
-	manifest, err := libjvm.NewManifest(context.Application.Path)
-	if err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
-	}
+	var manifest *properties.Properties
+	var startClass string
+	var buildFromJar bool
 
 	cr, err := libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
+
+	startClass, buildFromJar = cr.Resolve("BP_NATIVE_IMAGE_BUILD_FROM_JAR");
+	if !buildFromJar {
+		manifest, err = libjvm.NewManifest(context.Application.Path)
+		if err != nil {
+			return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
+		}
+		startClass, err = findStartOrMainClass(manifest)
+		if err != nil {
+			return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
+		}
+	}
+
 	if _, ok := cr.Resolve(DeprecatedConfigNativeImage); ok {
 		b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
 			DeprecatedConfigNativeImage,
@@ -84,17 +93,16 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID)
+	var nativeImageOptions []NativeImageOption
+	if buildFromJar {
+		nativeImageOptions = append(nativeImageOptions, WithJar(startClass))
+	}
+	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID, nativeImageOptions...)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}
 	n.Logger = b.Logger
 	result.Layers = append(result.Layers, n)
-
-	startClass, err := findStartOrMainClass(manifest)
-	if err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
-	}
 
 	command := filepath.Join(context.Application.Path, startClass)
 	result.Processes = append(result.Processes,
