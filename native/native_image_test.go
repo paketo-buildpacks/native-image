@@ -84,10 +84,11 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		}).Return(nil)
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
-			return e.Command == "native-image" && len(e.Args) == 6 && e.Args[0] == "test-argument-1"
+			return e.Command == "native-image" && e.Args[0] == "test-argument-1"
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
-			Expect(ioutil.WriteFile(filepath.Join(layer.Path, exec.Args[5]), []byte{}, 0644)).To(Succeed())
+			lastArg := exec.Args[len(exec.Args)-1]
+			Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
 		}).Return(nil)
 
 		layer, err = ctx.Layers.Layer("test-layer")
@@ -153,7 +154,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		it.Focus("contributes native image using Main-Class", func() {
+		it("contributes native image using Main-Class", func() {
 			_, err := nativeImage.Contribute(layer)
 			Expect(err).NotTo(HaveOccurred())
 
