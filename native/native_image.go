@@ -43,23 +43,19 @@ type NativeImage struct {
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string, ops ...NativeImageOption) (NativeImage, error) {
-	var err error
-	var nativeMain nativeMain
+func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string, jarFile string) (NativeImage, error) {
 	args, err := shellwords.Parse(arguments)
 	if err != nil {
 		return NativeImage{}, fmt.Errorf("unable to parse arguments from %s\n%w", arguments, err)
 	}
 
-	nativeImageOpts := &options{}
-	for _, op := range ops {
-		if err := op(nativeImageOpts); err != nil {
-			return NativeImage{}, err
-		}
-	}
+	var nativeMain nativeMain
 	nativeMain = newStartClassMain(applicationPath, manifest)
-	if nativeImageOpts.jarFileName != "" {
-		nativeMain = newJarFileMain(applicationPath, nativeImageOpts.jarFileName)
+	if jarFile != "" {
+		nativeMain, err = newJarFileMain(applicationPath, jarFile)
+		if err != nil {
+			return NativeImage{}, fmt.Errorf("unable to parse the native jar file\n%w", err)
+		}
 	}
 
 	return NativeImage{

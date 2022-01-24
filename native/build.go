@@ -45,24 +45,18 @@ type Build struct {
 func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	b.Logger.Title(context.Buildpack)
 	result := libcnb.NewBuildResult()
-	var manifest *properties.Properties
-	var startClass string
-	var buildFromJar bool
 
 	cr, err := libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
 
-	startClass, buildFromJar = cr.Resolve("BP_NATIVE_IMAGE_BUILD_FROM_JAR");
+	jarFile, buildFromJar := cr.Resolve("BP_NATIVE_IMAGE_BUILD_JAR");
+	var manifest *properties.Properties
 	if !buildFromJar {
 		manifest, err = libjvm.NewManifest(context.Application.Path)
 		if err != nil {
 			return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
-		}
-		startClass, err = findStartOrMainClass(manifest)
-		if err != nil {
-			return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
 		}
 	}
 
@@ -93,14 +87,16 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	var nativeImageOptions []NativeImageOption
-	if buildFromJar {
-		nativeImageOptions = append(nativeImageOptions, WithJar(startClass))
-	}
-	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID, nativeImageOptions...)
+	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID, jarFile)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}
+
+	startClass, err := n.nativeMain.Name()
+	if err != nil {
+		return libcnb.BuildResult{}, fmt.Errorf("unable to determine the main or start class\n%w", err)
+	}
+
 	n.Logger = b.Logger
 	result.Layers = append(result.Layers, n)
 
@@ -128,15 +124,4 @@ func (b Build) warn(msg string) {
 		color.New(color.FgYellow, color.Bold).Sprintf("Warning:"),
 		msg,
 	)
-}
-
-func findStartOrMainClass(manifest *properties.Properties) (string, error) {
-	startClass, ok := manifest.Get("Start-Class")
-	if !ok {
-		startClass, ok = manifest.Get("Main-Class")
-		if !ok {
-			return "", fmt.Errorf("unable to read Start-Class or Main-Class from MANIFEST.MF")
-		}
-	}
-	return startClass, nil
 }

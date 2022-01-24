@@ -47,8 +47,8 @@ description = "arguments to pass to the native-image command"
 build       = true
 
 [[metadata.configurations]]
-name        = "BP_NATIVE_IMAGE_BUILD_FROM_JAR"
-description = "name of the jar file (without .jar) to pass to the native-image command"
+name        = "BP_NATIVE_IMAGE_BUILD_JAR"
+description = "jar file path to pass to the native-image command. Example (native-sources/my-app.jar)"
 build       = true
 
 [metadata]

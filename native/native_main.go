@@ -8,12 +8,6 @@ import (
 	"strings"
 )
 
-type NativeImageOption func(*options) error
-
-type options struct {
-	jarFileName	string
-}
-
 type nativeMain interface {
 	Name() (string, error)
 	Arguments() []string
@@ -29,6 +23,7 @@ type startClassMain struct {
 type jarFileMain struct {
 	jarFileName		string
 	jarFile			string
+	jarFilePath		string
 }
 
 func newStartClassMain(path string, manifest  *properties.Properties) *startClassMain {
@@ -65,19 +60,18 @@ func (m *startClassMain) ClassPath() string {
 	return cp
 }
 
-func WithJar(fileName string) NativeImageOption {
-	return func(i *options) error {
-		i.jarFileName = fileName
-		return nil
+func newJarFileMain (path string, file string) (*jarFileMain, error) {
+	jarFile :=  filepath.Base(file)
+	jarFilePath := filepath.Join(path, filepath.Dir(file))
+	if ".jar" != filepath.Ext(jarFile) {
+		return &jarFileMain{}, fmt.Errorf("file %s has not a jar extension\n", jarFile)
 	}
-}
-
-func newJarFileMain (path string, fileName string) *jarFileMain {
-	jarFile :=   filepath.Join(path, fmt.Sprintf("%s.jar", fileName))
+	jarFileName := strings.TrimSuffix(jarFile, ".jar")
 	return &jarFileMain{
-		jarFileName: fileName,
+		jarFileName: jarFileName,
 		jarFile:     jarFile,
-	}
+		jarFilePath: jarFilePath,
+	}, nil
 }
 
 func (m *jarFileMain) Name() (string, error ) {
@@ -85,10 +79,20 @@ func (m *jarFileMain) Name() (string, error ) {
 }
 
 func (m *jarFileMain) Arguments() []string {
-	return []string {"-jar", m.jarFile}
+	return []string {"-jar", filepath.Join(m.jarFilePath, m.jarFile)}
 }
 
 func (m *jarFileMain) ClassPath() string {
-	// TODO I still have doubts if this could defined by user or determined programmatically
-	return "workspace:/lib"
+	return fmt.Sprintf("%s:/%s", m.jarFilePath, "lib")
+}
+
+func findStartOrMainClass(manifest *properties.Properties) (string, error) {
+	startClass, ok := manifest.Get("Start-Class")
+	if !ok {
+		startClass, ok = manifest.Get("Main-Class")
+		if !ok {
+			return "", fmt.Errorf("unable to read Start-Class or Main-Class from MANIFEST.MF")
+		}
+	}
+	return startClass, nil
 }
