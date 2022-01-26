@@ -185,4 +185,27 @@ Start-Class: test-start-class
 			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS has been deprecated. Please use $BP_NATIVE_IMAGE_BUILD_ARGUMENTS instead."))
 		})
 	})
+
+	context("BP_NATIVE_IMAGE_BUILD_JAR", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_NATIVE_IMAGE_BUILD_JAR", "native-sources/my-app-runner.jar")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_NATIVE_IMAGE_BUILD_JAR")).To(Succeed())
+		})
+
+		it("contributes native image layer and process name equal to jar file name", func() {
+			result, err := build.Build(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result.Layers).To(HaveLen(1))
+			Expect(result.Layers[0].(native.NativeImage).Arguments).To(BeEmpty())
+			Expect(result.Processes).To(ContainElements(
+				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "my-app-runner"), Direct: true},
+				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "my-app-runner"), Direct: true},
+				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "my-app-runner"), Direct: true, Default: true},
+			))
+		})
+	})
 }
