@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/paketo-buildpacks/libpak/sbom/mocks"
+	"github.com/paketo-buildpacks/libpak/sherpa"
 
 	"github.com/buildpacks/libcnb"
 	. "github.com/onsi/gomega"
@@ -155,7 +156,7 @@ Start-Class: test-start-class
 			result, err := build.Build(ctx)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal([]string{"test-native-image-argument"}))
+			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal("test-native-image-argument"))
 		})
 	})
 
@@ -180,9 +181,37 @@ Start-Class: test-start-class
 			result, err := build.Build(ctx)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal([]string{"test-native-image-argument"}))
+			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal("test-native-image-argument"))
 
 			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS has been deprecated. Please use $BP_NATIVE_IMAGE_BUILD_ARGUMENTS instead."))
+		})
+	})
+
+	context("BP_NATIVE_IMAGE_BUILT_ARTIFACT", func() {
+		it.Before(func() {
+			Expect(os.Setenv("BP_NATIVE_IMAGE_BUILT_ARTIFACT", "target/*.jar")).To(Succeed())
+		})
+
+		it.After(func() {
+			Expect(os.Unsetenv("BP_NATIVE_IMAGE_BUILT_ARTIFACT")).To(Succeed())
+		})
+
+		it("contributes native image layer to build against a JAR", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
+
+			fp, err := os.Open("testdata/test-fixture.jar")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(sherpa.CopyFile(fp, filepath.Join(ctx.Application.Path, "target", "test-fixture.jar"))).To(Succeed())
+
+			result, err := build.Build(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result.Layers[0].(native.NativeImage).JarFilePattern).To(Equal("target/*.jar"))
+			Expect(result.Processes).To(ContainElements(
+				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true},
+				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true},
+				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true, Default: true},
+			))
 		})
 	})
 }
