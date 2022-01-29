@@ -35,6 +35,7 @@ import (
 type NativeImage struct {
 	ApplicationPath string
 	Arguments       string
+	ArgumentsFile   string
 	Executor        effect.Executor
 	JarFilePattern  string
 	Logger          bard.Logger
@@ -43,10 +44,11 @@ type NativeImage struct {
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, compressor string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
+func NewNativeImage(applicationPath string, arguments string, argumentsFile string, compressor string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	return NativeImage{
 		ApplicationPath: applicationPath,
 		Arguments:       arguments,
+		ArgumentsFile:   argumentsFile,
 		Executor:        effect.NewExecutor(),
 		JarFilePattern:  jarFilePattern,
 		Manifest:        manifest,
@@ -171,12 +173,19 @@ func (n NativeImage) ProcessArguments(layer libcnb.Layer) ([]string, string, err
 
 	arguments, _, err = BaselineArguments{StackID: n.StackID}.Configure(nil)
 	if err != nil {
-		return []string{}, "", fmt.Errorf("unable to set baseline argument\n%w", err)
+		return []string{}, "", fmt.Errorf("unable to set baseline arguments\n%w", err)
+	}
+
+	if n.ArgumentsFile != "" {
+		arguments, _, err = UserFileArguments{ArgumentsFile: n.ArgumentsFile}.Configure(arguments)
+		if err != nil {
+			return []string{}, "", fmt.Errorf("unable to create user file arguments\n%w", err)
+		}
 	}
 
 	arguments, _, err = UserArguments{Arguments: n.Arguments}.Configure(arguments)
 	if err != nil {
-		return []string{}, "", fmt.Errorf("unable to create baseline argument\n%w", err)
+		return []string{}, "", fmt.Errorf("unable to create user arguments\n%w", err)
 	}
 
 	_, err = os.Stat(filepath.Join(n.ApplicationPath, "META-INF", "MANIFEST.MF"))

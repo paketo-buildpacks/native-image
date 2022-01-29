@@ -77,6 +77,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	}
 
 	jarFilePattern, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILT_ARTIFACT")
+	argsFile, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE")
 
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
 	if !ok {
@@ -88,7 +89,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, compressor, jarFilePattern, manifest, context.StackID)
+	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, jarFilePattern, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}

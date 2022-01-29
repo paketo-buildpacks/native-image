@@ -20,12 +20,13 @@ The buildpack will do the following:
 
 ## Configuration
 
-| Environment Variable               | Description                                                                                                                                              |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `$BP_NATIVE_IMAGE`                 | Whether to build a native image from the application.  Defaults to false.                                                                                |
-| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS` | Arguments to pass to directly to the `native-image` command. These arguments must be valid and correctly formed or the `native-image` command will fail. |
-| `$BP_BINARY_COMPRESSION_METHOD`    | Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`                                                            |
-| `$BP_NATIVE_IMAGE_BUILT_ARTIFACT`  | Configure the built application artifact explicitly. This is required if building a native image from a JAR file                                         |
+| Environment Variable                    | Description                                                                                                                                                                                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$BP_NATIVE_IMAGE`                      | Whether to build a native image from the application.  Defaults to false.                                                                                                                                                                     |
+| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS`      | Arguments to pass to directly to the `native-image` command. These arguments must be valid and correctly formed or the `native-image` command will fail.                                                                                      |
+| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE` | A file containing arguments to pass to directly to the `native-image` command. The file must exist and the contents must contain a single line of arguments which must be valid and correctly formed or the `native-image` command will fail. |
+| `$BP_BINARY_COMPRESSION_METHOD`         | Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`                                                                                                                                                 |
+| `$BP_NATIVE_IMAGE_BUILT_ARTIFACT`       | Configure the built application artifact explicitly. This is required if building a native image from a JAR file                                                                                                                              |
 
 ### Compression Caveats
 

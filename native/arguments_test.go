@@ -123,6 +123,54 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 		})
 	})
 
+	context("user arguments from file", func() {
+		it.Before(func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff.txt"), []byte("more stuff"), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`"more stuff"`), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "override.txt"), []byte(`one=output`), 0644)).To(Succeed())
+		})
+
+		it("has none", func() {
+			inputArgs := []string{"one", "two", "three"}
+			_, _, err := native.UserFileArguments{}.Configure(inputArgs)
+			Expect(err).To(MatchError(os.ErrNotExist))
+		})
+
+		it("has some and appends to end", func() {
+			inputArgs := []string{"one", "two", "three"}
+			args, startClass, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/more-stuff.txt"),
+			}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal(""))
+			Expect(args).To(HaveLen(5))
+			Expect(args).To(Equal([]string{"one", "two", "three", "more", "stuff"}))
+		})
+
+		it("works with quotes", func() {
+			inputArgs := []string{"one", "two", "three"}
+			args, startClass, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"),
+			}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal(""))
+			Expect(args).To(HaveLen(4))
+			Expect(args).To(Equal([]string{"one", "two", "three", "more stuff"}))
+		})
+
+		it("allows a user argument to override an input argument", func() {
+			inputArgs := []string{"one=input", "two", "three"}
+			args, startClass, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/override.txt"),
+			}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal(""))
+			Expect(args).To(HaveLen(3))
+			Expect(args).To(Equal([]string{"two", "three", "one=output"}))
+		})
+	})
+
 	context("exploded jar arguments", func() {
 		var layer libcnb.Layer
 
@@ -206,6 +254,22 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 
 		it("adds arguments", func() {
 			inputArgs := []string{"stuff"}
+			args, startClass, err := native.JarArguments{
+				ApplicationPath: ctx.Application.Path,
+				JarFilePattern:  "target/*.jar",
+			}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal("found"))
+			Expect(args).To(HaveLen(3))
+			Expect(args).To(Equal([]string{
+				"stuff",
+				"-jar",
+				filepath.Join(ctx.Application.Path, "target", "found.jar"),
+			}))
+		})
+
+		it("overrides -jar arguments", func() {
+			inputArgs := []string{"stuff", "-jar", "no-where"}
 			args, startClass, err := native.JarArguments{
 				ApplicationPath: ctx.Application.Path,
 				JarFilePattern:  "target/*.jar",

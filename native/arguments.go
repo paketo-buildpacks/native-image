@@ -18,6 +18,7 @@ package native
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -58,6 +59,36 @@ func (u UserArguments) Configure(inputArgs []string) ([]string, string, error) {
 	parsedArgs, err := shellwords.Parse(u.Arguments)
 	if err != nil {
 		return []string{}, "", fmt.Errorf("unable to parse arguments from %s\n%w", u.Arguments, err)
+	}
+
+	var outputArgs []string
+
+	for _, inputArg := range inputArgs {
+		if !containsArg(inputArg, parsedArgs) {
+			outputArgs = append(outputArgs, inputArg)
+		}
+	}
+
+	outputArgs = append(outputArgs, parsedArgs...)
+
+	return outputArgs, "", nil
+}
+
+// UserFileArguments augments the existing arguments with those provided by the end user through a file
+type UserFileArguments struct {
+	ArgumentsFile string
+}
+
+// Configure returns the inputArgs plus the additional arguments specified by the end user through the file, preference given to user arguments
+func (u UserFileArguments) Configure(inputArgs []string) ([]string, string, error) {
+	rawArgs, err := ioutil.ReadFile(u.ArgumentsFile)
+	if err != nil {
+		return []string{}, "", fmt.Errorf("read arguments from %s\n%w", u.ArgumentsFile, err)
+	}
+
+	parsedArgs, err := shellwords.Parse(string(rawArgs))
+	if err != nil {
+		return []string{}, "", fmt.Errorf("unable to parse arguments from %s\n%w", string(rawArgs), err)
 	}
 
 	var outputArgs []string
@@ -139,12 +170,10 @@ type JarArguments struct {
 
 func (j JarArguments) Configure(inputArgs []string) ([]string, string, error) {
 	file := filepath.Join(j.ApplicationPath, j.JarFilePattern)
-	fmt.Println("----", file)
 	candidates, err := filepath.Glob(file)
 	if err != nil {
 		return []string{}, "", fmt.Errorf("unable to find JAR with %s\n%w", j.JarFilePattern, err)
 	}
-	fmt.Println("----", candidates)
 
 	if len(candidates) != 1 {
 		sort.Strings(candidates)
@@ -153,6 +182,25 @@ func (j JarArguments) Configure(inputArgs []string) ([]string, string, error) {
 
 	jarFileName := filepath.Base(candidates[0])
 	startClass := strings.TrimSuffix(jarFileName, ".jar")
+
+	if containsArg("-jar", inputArgs) {
+		var tmpArgs []string
+		var skip bool
+		for _, inputArg := range inputArgs {
+			if skip {
+				skip = false
+				break
+			}
+
+			if inputArg == "-jar" {
+				skip = true
+				break
+			}
+
+			tmpArgs = append(tmpArgs, inputArg)
+		}
+		inputArgs = tmpArgs
+	}
 
 	inputArgs = append(inputArgs, "-jar", candidates[0])
 

@@ -47,6 +47,11 @@ description = "arguments to pass to the native-image command"
 build       = true
 
 [[metadata.configurations]]
+name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE"
+description = "a file with arguments to pass to the native-image command"
+build       = true
+
+[[metadata.configurations]]
 name        = "BP_BINARY_COMPRESSION_METHOD"
 description = "Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`"
 build       = true
