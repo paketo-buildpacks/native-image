@@ -69,8 +69,10 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "fixture-marker"), []byte{}, 0644)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "BOOT-INF"), 0755)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "META-INF"), 0755)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte{}, 0644)).To(Succeed())
 
-		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "none", props, ctx.StackID)
+		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
 		nativeImage.Logger = bard.NewLogger(io.Discard)
 		Expect(err).NotTo(HaveOccurred())
 		nativeImage.Executor = executor
@@ -84,7 +86,8 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		}).Return(nil)
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
-			return e.Command == "native-image" && e.Args[0] == "test-argument-1"
+			return e.Command == "native-image" &&
+				(e.Args[0] == "test-argument-1" || (e.Args[0] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[1] == "test-argument-1"))
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
 			lastArg := exec.Args[len(exec.Args)-1]
@@ -127,6 +130,33 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 	context("CLASSPATH is not set", func() {
 		it("contributes native image with Class-Path from manifest", func() {
 			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executor.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"test-argument-1",
+				"test-argument-2",
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
+				"-cp",
+				strings.Join([]string{
+					ctx.Application.Path,
+					"manifest-class-path",
+				}, ":"),
+				"test-start-class",
+			}))
+		})
+
+		it("contributes native image with Class-Path from manifest and args from a file", func() {
+			argsFile := filepath.Join(ctx.Application.Path, "target", "args.txt")
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(argsFile, []byte(`test-argument-1 test-argument-2`), 0644)).To(Succeed())
+
+			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", "", props, ctx.StackID)
+			nativeImage.Logger = bard.NewLogger(io.Discard)
+			Expect(err).NotTo(HaveOccurred())
+			nativeImage.Executor = executor
+
+			_, err = nativeImage.Contribute(layer)
 			Expect(err).NotTo(HaveOccurred())
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
@@ -253,9 +283,9 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Command).To(Equal("native-image"))
 			Expect(execution.Args).To(Equal([]string{
+				"-H:+StaticExecutableWithDynamicLibC",
 				"test-argument-1",
 				"test-argument-2",
-				"-H:+StaticExecutableWithDynamicLibC",
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
 				"-cp",
 				strings.Join([]string{

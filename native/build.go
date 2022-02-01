@@ -17,6 +17,7 @@
 package native
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -57,8 +58,9 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
+
 	if _, ok := cr.Resolve(DeprecatedConfigNativeImage); ok {
-		b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
+		warn(b.Logger, fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
 			DeprecatedConfigNativeImage,
 			ConfigNativeImage,
 		))
@@ -67,31 +69,34 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	args, ok := cr.Resolve(ConfigNativeImageArgs)
 	if !ok {
 		if args, ok = cr.Resolve(DeprecatedConfigNativeImageArgs); ok {
-			b.warn(fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
+			warn(b.Logger, fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
 				DeprecatedConfigNativeImageArgs,
 				ConfigNativeImageArgs,
 			))
 		}
 	}
 
+	jarFilePattern, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILT_ARTIFACT")
+	argsFile, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE")
+
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
 	if !ok {
 		compressor = CompressorNone
 	} else if ok {
 		if compressor != CompressorUpx && compressor != CompressorGzexe && compressor != CompressorNone {
-			b.warn(fmt.Sprintf("Requested compression method [%s] is unknown, no compression will be performed", compressor))
+			warn(b.Logger, fmt.Sprintf("Requested compression method [%s] is unknown, no compression will be performed", compressor))
 			compressor = CompressorNone
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, compressor, manifest, context.StackID)
+	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, jarFilePattern, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}
 	n.Logger = b.Logger
 	result.Layers = append(result.Layers, n)
 
-	startClass, err := findStartOrMainClass(manifest)
+	startClass, err := findStartOrMainClass(manifest, context.Application.Path, jarFilePattern)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
 	}
@@ -114,21 +119,32 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 }
 
 // todo: move warn method to the logger
-func (b Build) warn(msg string) {
-	b.Logger.Headerf(
+func warn(l bard.Logger, msg string) {
+	l.Headerf(
 		"\n%s %s\n\n",
 		color.New(color.FgYellow, color.Bold).Sprintf("Warning:"),
 		msg,
 	)
 }
 
-func findStartOrMainClass(manifest *properties.Properties) (string, error) {
-	startClass, ok := manifest.Get("Start-Class")
-	if !ok {
-		startClass, ok = manifest.Get("Main-Class")
-		if !ok {
-			return "", fmt.Errorf("unable to read Start-Class or Main-Class from MANIFEST.MF")
-		}
+func findStartOrMainClass(manifest *properties.Properties, appPath, jarFilePattern string) (string, error) {
+	_, startClass, err := ExplodedJarArguments{Manifest: manifest}.Configure(nil)
+	if err != nil && !errors.Is(err, NoStartOrMainClass{}) {
+		return "", fmt.Errorf("unable to find startClass\n%w", err)
 	}
-	return startClass, nil
+
+	if startClass != "" {
+		return startClass, nil
+	}
+
+	_, startClass, err = JarArguments{JarFilePattern: jarFilePattern, ApplicationPath: appPath}.Configure(nil)
+	if err != nil {
+		return "", fmt.Errorf("unable to find startClass from JAR\n%w", err)
+	}
+
+	if startClass != "" {
+		return startClass, nil
+	}
+
+	return "", fmt.Errorf("unable to find a suitable startClass")
 }

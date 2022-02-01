@@ -26,7 +26,6 @@ import (
 
 	"github.com/buildpacks/libcnb"
 	"github.com/magiconair/properties"
-	"github.com/mattn/go-shellwords"
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/paketo-buildpacks/libpak/effect"
@@ -35,26 +34,23 @@ import (
 
 type NativeImage struct {
 	ApplicationPath string
-	Arguments       []string
+	Arguments       string
+	ArgumentsFile   string
 	Executor        effect.Executor
+	JarFilePattern  string
 	Logger          bard.Logger
 	Manifest        *properties.Properties
 	StackID         string
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, compressor string, manifest *properties.Properties, stackID string) (NativeImage, error) {
-	var err error
-
-	args, err := shellwords.Parse(arguments)
-	if err != nil {
-		return NativeImage{}, fmt.Errorf("unable to parse arguments from %s\n%w", arguments, err)
-	}
-
+func NewNativeImage(applicationPath string, arguments string, argumentsFile string, compressor string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	return NativeImage{
 		ApplicationPath: applicationPath,
-		Arguments:       args,
+		Arguments:       arguments,
+		ArgumentsFile:   argumentsFile,
 		Executor:        effect.NewExecutor(),
+		JarFilePattern:  jarFilePattern,
 		Manifest:        manifest,
 		StackID:         stackID,
 		Compressor:      compressor,
@@ -62,35 +58,14 @@ func NewNativeImage(applicationPath string, arguments string, compressor string,
 }
 
 func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
-	startClass, err := findStartOrMainClass(n.Manifest)
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to find required manifest property\n%w", err)
-	}
-
-	arguments := n.Arguments
-
-	if n.StackID == libpak.TinyStackID {
-		arguments = append(arguments, "-H:+StaticExecutableWithDynamicLibC")
-	}
-
-	cp := os.Getenv("CLASSPATH")
-	if cp == "" {
-		// CLASSPATH should have been done by upstream buildpacks, but just in case
-		cp = n.ApplicationPath
-		if v, ok := n.Manifest.Get("Class-Path"); ok {
-			cp = strings.Join([]string{cp, v}, string(filepath.ListSeparator))
-		}
-	}
-
-	arguments = append(arguments,
-		fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, startClass)),
-		"-cp", cp,
-		startClass,
-	)
-
 	files, err := sherpa.NewFileListing(n.ApplicationPath)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to create file listing for %s\n%w", n.ApplicationPath, err)
+	}
+
+	arguments, startClass, err := n.ProcessArguments(layer)
+	if err != nil {
+		return libcnb.Layer{}, fmt.Errorf("unable to process arguments\n%w", err)
 	}
 
 	contributor := libpak.NewLayerContributor("Native Image", map[string]interface{}{
@@ -189,6 +164,53 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	}
 
 	return layer, nil
+}
+
+func (n NativeImage) ProcessArguments(layer libcnb.Layer) ([]string, string, error) {
+	var arguments []string
+	var startClass string
+	var err error
+
+	arguments, _, err = BaselineArguments{StackID: n.StackID}.Configure(nil)
+	if err != nil {
+		return []string{}, "", fmt.Errorf("unable to set baseline arguments\n%w", err)
+	}
+
+	if n.ArgumentsFile != "" {
+		arguments, _, err = UserFileArguments{ArgumentsFile: n.ArgumentsFile}.Configure(arguments)
+		if err != nil {
+			return []string{}, "", fmt.Errorf("unable to create user file arguments\n%w", err)
+		}
+	}
+
+	arguments, _, err = UserArguments{Arguments: n.Arguments}.Configure(arguments)
+	if err != nil {
+		return []string{}, "", fmt.Errorf("unable to create user arguments\n%w", err)
+	}
+
+	_, err = os.Stat(filepath.Join(n.ApplicationPath, "META-INF", "MANIFEST.MF"))
+	if err != nil && !os.IsNotExist(err) {
+		return []string{}, "", fmt.Errorf("unable to check for manifest\n%w", err)
+	} else if err != nil && os.IsNotExist(err) {
+		arguments, startClass, err = JarArguments{
+			ApplicationPath: n.ApplicationPath,
+			JarFilePattern:  n.JarFilePattern,
+		}.Configure(arguments)
+		if err != nil {
+			return []string{}, "", fmt.Errorf("unable to append jar arguments\n%w", err)
+		}
+	} else {
+		arguments, startClass, err = ExplodedJarArguments{
+			ApplicationPath: n.ApplicationPath,
+			LayerPath:       layer.Path,
+			Manifest:        n.Manifest,
+		}.Configure(arguments)
+		if err != nil {
+			return []string{}, "", fmt.Errorf("unable to append exploded-jar directory arguments\n%w", err)
+		}
+	}
+
+	return arguments, startClass, err
 }
 
 func (NativeImage) Name() string {

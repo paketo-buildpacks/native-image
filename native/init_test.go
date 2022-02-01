@@ -27,6 +27,7 @@ func TestUnit(t *testing.T) {
 	suite := spec.New("native", spec.Report(report.Terminal{}))
 	suite("Build", testBuild)
 	suite("Detect", testDetect)
+	suite("Arguments", testArguments)
 	suite("NativeImage", testNativeImage)
 	suite.Run(t)
 }

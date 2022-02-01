@@ -15,15 +15,18 @@ The buildpack will do the following:
 
 * Requests that the Native Image builder be installed by requiring `native-image-builder` in the build plan.
 * If `$BP_BINARY_COMPRESSION_METHOD` is set to `upx`, requests that UPX be installed by requiring `upx` in the buildplan.
-* Uses `native-image` a to build a GraalVM native image and removes existing bytecode.
+* Uses `native-image` a to build a GraalVM native image and removes existing bytecode. Defaults to building the `/workspace` as an exploded JAR. If `$BP_NATIVE_IMAGE_BUILT_ARTIFACT` is set, it will build from the specified JAR file.
 * Uses `$BP_BINARY_COMPRESSION_METHOD` if set to `upx` or `gzexe` to compress the native image.
 
 ## Configuration
-| Environment Variable               | Description                                                                                   |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- |
-| `$BP_NATIVE_IMAGE`                 | Whether to build a native image from the application.  Defaults to false.                     |
-| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS` | Arguments to pass to directly to the `native-image` command. These arguments must be valid and correctly formed or the `native-image` command will fail. |
-| `$BP_BINARY_COMPRESSION_METHOD`    | Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe` |
+
+| Environment Variable                    | Description                                                                                                                                                                                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$BP_NATIVE_IMAGE`                      | Whether to build a native image from the application.  Defaults to false.                                                                                                                                                                     |
+| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS`      | Arguments to pass to directly to the `native-image` command. These arguments must be valid and correctly formed or the `native-image` command will fail.                                                                                      |
+| `$BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE` | A file containing arguments to pass to directly to the `native-image` command. The file must exist and the contents must contain a single line of arguments which must be valid and correctly formed or the `native-image` command will fail. |
+| `$BP_BINARY_COMPRESSION_METHOD`         | Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`                                                                                                                                                 |
+| `$BP_NATIVE_IMAGE_BUILT_ARTIFACT`       | Configure the built application artifact explicitly. This is required if building a native image from a JAR file                                                                                                                              |
 
 ### Compression Caveats
 
@@ -32,6 +35,7 @@ The buildpack will do the following:
 2. Using `upx` will create a compressed executable that fails to run on M1 Macs. There is at the time of writing a bug in the emulation layer used by Docker on M1 Macs that is triggered when you try to run amd64 executable that has been compressed using `upx`. This is a known issue and will hopefully be patched in a future release.
 
 ## License
+
 This buildpack is released under version 2.0 of the [Apache License][a].
 
 [a]: http://www.apache.org/licenses/LICENSE-2.0
