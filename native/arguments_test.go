@@ -27,7 +27,7 @@ import (
 	"github.com/magiconair/properties"
 	. "github.com/onsi/gomega"
 	"github.com/paketo-buildpacks/libpak"
-	"github.com/paketo-buildpacks/native-image/native"
+	"github.com/paketo-buildpacks/native-image/v5/native"
 	"github.com/sclevine/spec"
 )
 

@@ -35,7 +35,7 @@ import (
 	"github.com/sclevine/spec"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/paketo-buildpacks/native-image/native"
+	"github.com/paketo-buildpacks/native-image/v5/native"
 )
 
 func testNativeImage(t *testing.T, context spec.G, it spec.S) {
