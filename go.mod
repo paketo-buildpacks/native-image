@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/buildpacks/libcnb v1.25.5
 	github.com/heroku/color v0.0.6
-	github.com/magiconair/properties v1.8.5
+	github.com/magiconair/properties v1.8.6
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/onsi/gomega v1.18.1
