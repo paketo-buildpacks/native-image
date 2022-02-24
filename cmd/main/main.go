@@ -22,7 +22,7 @@ import (
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
 
-	"github.com/paketo-buildpacks/native-image/native"
+	"github.com/paketo-buildpacks/native-image/v5/native"
 )
 
 func main() {
