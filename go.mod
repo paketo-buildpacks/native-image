@@ -12,7 +12,7 @@ require (
 	github.com/paketo-buildpacks/libjvm v1.35.0
 	github.com/paketo-buildpacks/libpak v1.58.0
 	github.com/sclevine/spec v1.4.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 )
 
 require (
@@ -21,7 +21,6 @@ require (
 	github.com/creack/pty v1.1.17 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/pavel-v-chernykh/keystore-go/v4 v4.3.0 // indirect
