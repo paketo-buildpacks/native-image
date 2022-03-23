@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/onsi/gomega v1.18.1
 	github.com/paketo-buildpacks/libjvm v1.35.0
-	github.com/paketo-buildpacks/libpak v1.58.0
+	github.com/paketo-buildpacks/libpak v1.59.0
 	github.com/sclevine/spec v1.4.0
 	github.com/stretchr/testify v1.7.1
 )
@@ -20,6 +20,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/creack/pty v1.1.17 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/h2non/filetype v1.1.3 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
