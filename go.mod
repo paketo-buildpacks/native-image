@@ -9,7 +9,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/onsi/gomega v1.19.0
-	github.com/paketo-buildpacks/libjvm v1.36.2
+	github.com/paketo-buildpacks/libjvm v1.37.0
 	github.com/paketo-buildpacks/libpak v1.60.1
 	github.com/sclevine/spec v1.4.0
 	github.com/stretchr/testify v1.7.1
