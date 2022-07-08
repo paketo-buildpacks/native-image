@@ -17,6 +17,8 @@
 package native
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -68,26 +70,28 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		return libcnb.Layer{}, fmt.Errorf("unable to process arguments\n%w", err)
 	}
 
+	buf := &bytes.Buffer{}
+	if err := n.Executor.Execute(effect.Execution{
+		Command: "native-image",
+		Args:    []string{"--version"},
+		Stdout:  buf,
+		Stderr:  n.Logger.BodyWriter(),
+	}); err != nil {
+		return libcnb.Layer{}, fmt.Errorf("error running version\n%w", err)
+	}
+	nativeBinaryHash := fmt.Sprintf("%x", sha256.Sum256(buf.Bytes()))
+
 	contributor := libpak.NewLayerContributor("Native Image", map[string]interface{}{
 		"files":       files,
 		"arguments":   arguments,
 		"compression": n.Compressor,
+		"info":        nativeBinaryHash,
 	}, libcnb.LayerTypes{
 		Cache: true,
 	})
 	contributor.Logger = n.Logger
 
 	layer, err = contributor.Contribute(layer, func() (libcnb.Layer, error) {
-		if err := n.Executor.Execute(effect.Execution{
-			Command: "native-image",
-			Args:    []string{"--version"},
-			Dir:     layer.Path,
-			Stdout:  n.Logger.BodyWriter(),
-			Stderr:  n.Logger.BodyWriter(),
-		}); err != nil {
-			return libcnb.Layer{}, fmt.Errorf("error running version\n%w", err)
-		}
-
 		n.Logger.Bodyf("Executing native-image %s", strings.Join(arguments, " "))
 		if err := n.Executor.Execute(effect.Execution{
 			Command: "native-image",
