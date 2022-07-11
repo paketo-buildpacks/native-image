@@ -85,7 +85,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		"files":       files,
 		"arguments":   arguments,
 		"compression": n.Compressor,
-		"info":        nativeBinaryHash,
+		"version-hash":        nativeBinaryHash,
 	}, libcnb.LayerTypes{
 		Cache: true,
 	})
