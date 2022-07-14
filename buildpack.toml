@@ -28,12 +28,6 @@ type = "Apache-2.0"
 uri  = "https://github.com/paketo-buildpacks/native-image/blob/main/LICENSE"
 
 [[stacks]]
-id = "io.buildpacks.stacks.bionic"
-
-[[stacks]]
-id = "io.paketo.stacks.tiny"
-
-[[stacks]]
 id = "*"
 
 [[metadata.configurations]]

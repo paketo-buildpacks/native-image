@@ -30,7 +30,7 @@ The buildpack will do the following:
 
 ### Compression Caveats
 
-1. Using `gzexe` if you intend to run your application on the Paketo Tiny image is not currently supported. The `gzexe` utility will compress your executable into what is a shell script, which executes and extracts the actual binary to a temp location. This process requires `/bin/sh` and that is not in the Tiny image. If you try using `gzexe` with the Tiny stack, it'll build OK but fail to run saying a file is missing.
+1. Using `gzexe` if you intend to run your application on a Paketo Tiny image is not currently supported. The `gzexe` utility will compress your executable into what is a shell script, which executes and extracts the actual binary to a temp location. This process requires `/bin/sh` and that is not in the Tiny images. If you try using `gzexe` with a Tiny stack, it'll build OK but fail to run saying a file is missing.
 
 2. Using `upx` will create a compressed executable that fails to run on M1 Macs. There is at the time of writing a bug in the emulation layer used by Docker on M1 Macs that is triggered when you try to run amd64 executable that has been compressed using `upx`. This is a known issue and will hopefully be patched in a future release.
 
