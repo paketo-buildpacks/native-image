@@ -42,7 +42,7 @@ type BaselineArguments struct {
 func (b BaselineArguments) Configure(_ []string) ([]string, string, error) {
 	var newArguments []string
 
-	if b.StackID == libpak.TinyStackID {
+	if b.StackID == libpak.BionicTinyStackID || b.StackID == libpak.JammyTinyStackID {
 		newArguments = append(newArguments, "-H:+StaticExecutableWithDynamicLibC")
 	}
 
