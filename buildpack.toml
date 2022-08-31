@@ -16,7 +16,7 @@ api = "0.7"
 
 [buildpack]
   id       = "paketo-buildpacks/native-image"
-  name     = "Paketo Native Image Buildpack"
+  name     = "Paketo Buildpack for Native Image"
   version  = "{{.version}}"
   homepage = "https://github.com/paketo-buildpacks/native-image"
   description = "A Cloud Native Buildpack that creates native images from Java applications"

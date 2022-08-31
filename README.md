@@ -1,6 +1,6 @@
 # `gcr.io/paketo-buildpacks/native-image`
 
-The Paketo Native Image Buildpack is a Cloud Native Buildpack that uses the [GraalVM Native Image builder][native-image] (`native-image`) to compile a standalone executable from an executable JAR.
+The Paketo Buildpack for Native Image is a Cloud Native Buildpack that uses the [GraalVM Native Image builder][native-image] (`native-image`) to compile a standalone executable from an executable JAR.
 
 Most users should not use this component buildpack directly and should instead use the [Paketo Java Native Image][bp/java-native-image], which provides the full set of buildpacks required to build a native image application.
 
