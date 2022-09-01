@@ -3,7 +3,7 @@ module github.com/paketo-buildpacks/native-image/v5
 go 1.18
 
 require (
-	github.com/buildpacks/libcnb v1.26.0
+	github.com/buildpacks/libcnb v1.27.0
 	github.com/heroku/color v0.0.6
 	github.com/magiconair/properties v1.8.6
 	github.com/mattn/go-colorable v0.1.13 // indirect
