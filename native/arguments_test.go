@@ -123,6 +123,43 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 		})
 	})
 
+	context("native-image arguments file", func() {
+
+		it.Before(func() {
+
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "META-INF", "native-image"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "native-image", "argfile"), []byte("--flag test-val"), 0644)).To(Succeed())
+		})
+
+		it("adds no args if file is not found", func() {
+			inputArgs := []string{"one=input", "two", "three"}
+			args, _, err := native.NativeImageArguments{}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(args).To(Equal([]string{"one=input", "two", "three"}))
+		})
+
+		it("appends provided args from file", func() {
+			inputArgs := []string{"one=input", "two", "three"}
+			args, startClass, err := native.NativeImageArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "META-INF/native-image/argfile"),
+			}.Configure(inputArgs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal(""))
+			Expect(args).To(HaveLen(4))
+			Expect(args).To(Equal([]string{"one=input", "two", "three", fmt.Sprintf( "@%s", filepath.Join(ctx.Application.Path, "META-INF", "native-image", "argfile"))}))
+		})
+
+		it("only adds args from file", func() {
+			args, startClass, err := native.NativeImageArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "META-INF/native-image/argfile"),
+			}.Configure(nil)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(startClass).To(Equal(""))
+			Expect(args).To(HaveLen(1))
+			Expect(args[0]).To( ContainSubstring("META-INF/native-image/argfile"))
+		})
+	})
+
 	context("user arguments from file", func() {
 		it.Before(func() {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())

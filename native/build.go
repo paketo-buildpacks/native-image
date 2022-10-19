@@ -19,6 +19,7 @@ package native
 import (
 	"errors"
 	"fmt"
+	"github.com/paketo-buildpacks/libpak/sherpa"
 	"path/filepath"
 
 	"github.com/paketo-buildpacks/libpak/effect"
@@ -79,6 +80,13 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	jarFilePattern, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILT_ARTIFACT")
 	argsFile, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE")
 
+	nativeImageArgFile := filepath.Join(context.Application.Path, "META-INF", "native-image", "argfile")
+	if exists, err := sherpa.Exists(nativeImageArgFile); err != nil{
+		return libcnb.BuildResult{}, fmt.Errorf("unable to check for native-image arguments file at %s\n%w", nativeImageArgFile, err)
+	} else if !exists{
+		nativeImageArgFile = ""
+	}
+
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
 	if !ok {
 		compressor = CompressorNone
@@ -89,7 +97,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, jarFilePattern, manifest, context.StackID)
+	n, err := NewNativeImage(context.Application.Path, args, argsFile, nativeImageArgFile, compressor, jarFilePattern, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}

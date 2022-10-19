@@ -38,6 +38,7 @@ type NativeImage struct {
 	ApplicationPath string
 	Arguments       string
 	ArgumentsFile   string
+	NativeImageArgFile	string
 	Executor        effect.Executor
 	JarFilePattern  string
 	Logger          bard.Logger
@@ -46,11 +47,12 @@ type NativeImage struct {
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, argumentsFile string, compressor string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
+func NewNativeImage(applicationPath string, arguments string, argumentsFile string, nativeImageArgFile string, compressor string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	return NativeImage{
 		ApplicationPath: applicationPath,
 		Arguments:       arguments,
 		ArgumentsFile:   argumentsFile,
+		NativeImageArgFile: nativeImageArgFile,
 		Executor:        effect.NewExecutor(),
 		JarFilePattern:  jarFilePattern,
 		Manifest:        manifest,
@@ -186,6 +188,13 @@ func (n NativeImage) ProcessArguments(layer libcnb.Layer) ([]string, string, err
 		return []string{}, "", fmt.Errorf("unable to set baseline arguments\n%w", err)
 	}
 
+	if n.NativeImageArgFile != ""{
+		arguments, _, err = NativeImageArguments{ArgumentsFile: n.NativeImageArgFile}.Configure(arguments)
+		if err != nil {
+			return []string{}, "", fmt.Errorf("unable to set native-image arguments\n%w", err)
+		}
+	}
+
 	if n.ArgumentsFile != "" {
 		arguments, _, err = UserFileArguments{ArgumentsFile: n.ArgumentsFile}.Configure(arguments)
 		if err != nil {
@@ -219,6 +228,7 @@ func (n NativeImage) ProcessArguments(layer libcnb.Layer) ([]string, string, err
 			return []string{}, "", fmt.Errorf("unable to append exploded-jar directory arguments\n%w", err)
 		}
 	}
+
 
 	return arguments, startClass, err
 }

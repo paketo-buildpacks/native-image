@@ -18,6 +18,7 @@ package native
 
 import (
 	"fmt"
+	"github.com/paketo-buildpacks/libpak/sherpa"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -47,6 +48,23 @@ func (b BaselineArguments) Configure(_ []string) ([]string, string, error) {
 	}
 
 	return newArguments, "", nil
+}
+
+// NativeImageArguments provides a set of arguments that are provided via META-INF/native-image/argfile
+type NativeImageArguments struct {
+	ArgumentsFile string
+}
+
+// Configure returns the inputArgs plus the additional arguments provided via jar argfile
+func (s NativeImageArguments) Configure(inputArgs []string) ([]string, string, error) {
+	if ok, err := sherpa.Exists(s.ArgumentsFile); err != nil {
+		return []string{}, "", fmt.Errorf("unable to find native-image arguments file %s\n%w", s.ArgumentsFile, err)
+	} else if ok {
+		nativeImageArgFile := fmt.Sprintf("@%s", s.ArgumentsFile)
+		inputArgs = append(inputArgs, nativeImageArgFile)
+	}
+
+	return inputArgs, "", nil
 }
 
 // UserArguments augments the existing arguments with those provided by the end user
