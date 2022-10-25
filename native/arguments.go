@@ -79,30 +79,33 @@ type UserFileArguments struct {
 	ArgumentsFile string
 }
 
-// Configure returns the inputArgs plus the additional arguments specified by the end user through the file, preference given to user arguments
+// Configure returns the inputArgs plus the additional arguments provided via argfile, setting via the '@argfile' format
 func (u UserFileArguments) Configure(inputArgs []string) ([]string, string, error) {
+
 	rawArgs, err := ioutil.ReadFile(u.ArgumentsFile)
 	if err != nil {
 		return []string{}, "", fmt.Errorf("read arguments from %s\n%w", u.ArgumentsFile, err)
 	}
 
-	parsedArgs, err := shellwords.Parse(string(rawArgs))
-	if err != nil {
-		return []string{}, "", fmt.Errorf("unable to parse arguments from %s\n%w", string(rawArgs), err)
+	fileArgs := strings.Split(string(rawArgs), "\n")
+	if len(fileArgs) == 1{
+		fileArgs = strings.Split(string(rawArgs), " ")
 	}
 
-	var outputArgs []string
-
-	for _, inputArg := range inputArgs {
-		if !containsArg(inputArg, parsedArgs) {
-			outputArgs = append(outputArgs, inputArg)
+	if containsArg("-jar", fileArgs) {
+		fileArgs = replaceJarArguments(fileArgs)
+		newArgList := strings.Join(fileArgs, " ")
+		if err = os.WriteFile(u.ArgumentsFile,[]byte(newArgList),0644); err != nil{
+			return []string{}, "", fmt.Errorf("unable to write to arguments file %s\n%w", u.ArgumentsFile, err)
 		}
 	}
 
-	outputArgs = append(outputArgs, parsedArgs...)
+	inputArgs = append(inputArgs, fmt.Sprintf("@%s", u.ArgumentsFile))
 
-	return outputArgs, "", nil
+	return inputArgs, "", nil
+
 }
+
 
 // containsArg checks if needle is found in haystack
 //
@@ -184,25 +187,47 @@ func (j JarArguments) Configure(inputArgs []string) ([]string, string, error) {
 	startClass := strings.TrimSuffix(jarFileName, ".jar")
 
 	if containsArg("-jar", inputArgs) {
-		var tmpArgs []string
-		var skip bool
-		for _, inputArg := range inputArgs {
-			if skip {
-				skip = false
-				break
-			}
-
-			if inputArg == "-jar" {
-				skip = true
-				break
-			}
-
-			tmpArgs = append(tmpArgs, inputArg)
-		}
-		inputArgs = tmpArgs
+		inputArgs = replaceJarArguments(inputArgs)
 	}
-
 	inputArgs = append(inputArgs, "-jar", candidates[0])
 
 	return inputArgs, startClass, nil
+}
+
+func replaceJarArguments(fileArgs []string) []string {
+	var tmpArgs, modifiedArgs []string
+	var skip, skipTillQuote bool
+	var className string
+
+	for i, inputArg := range fileArgs {
+		if strings.HasPrefix(inputArg, `"`) {
+			skipTillQuote = true
+			continue
+		}
+
+		if skipTillQuote && strings.HasSuffix(inputArg, `"`) {
+			skipTillQuote = false
+		}
+
+		if skip {
+			skip = false
+			className = strings.TrimSuffix(fileArgs[i], ".jar")
+			continue
+		}
+
+		if inputArg == "-jar" {
+			skip = true
+			continue
+		}
+
+		tmpArgs = append(tmpArgs, inputArg)
+	}
+
+	for _, inputArg := range tmpArgs {
+		if inputArg == className {
+			continue
+		}
+		modifiedArgs = append(modifiedArgs, inputArg)
+	}
+	return modifiedArgs
 }

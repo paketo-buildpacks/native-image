@@ -19,6 +19,7 @@ package native
 import (
 	"errors"
 	"fmt"
+	"github.com/paketo-buildpacks/libpak/sherpa"
 	"path/filepath"
 
 	"github.com/paketo-buildpacks/libpak/effect"
@@ -78,6 +79,19 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 
 	jarFilePattern, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILT_ARTIFACT")
 	argsFile, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE")
+
+	if argsFile != "" {
+		argsFile, err = filepath.Abs(argsFile)
+		if err != nil {
+			return libcnb.BuildResult{}, fmt.Errorf("unable to create absolute path for native image argfile %s\n%w", argsFile, err)
+		}
+
+		if exists, err := sherpa.Exists(argsFile); err != nil {
+			return libcnb.BuildResult{}, fmt.Errorf("unable to check for native-image arguments file at %s\n%w", argsFile, err)
+		} else if !exists {
+			argsFile = ""
+		}
+	}
 
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
 	if !ok {
