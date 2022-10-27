@@ -127,7 +127,8 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 		it.Before(func() {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
 			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff.txt"), []byte("more stuff"), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`"more stuff"`), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`before -jar "more stuff.jar" after -other="my path"`), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt"), []byte(`stuff -jar stuff.jar after`), 0644)).To(Succeed())
 			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "override.txt"), []byte(`one=output`), 0644)).To(Succeed())
 		})
 
@@ -144,11 +145,11 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			}.Configure(inputArgs)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(startClass).To(Equal(""))
-			Expect(args).To(HaveLen(5))
-			Expect(args).To(Equal([]string{"one", "two", "three", "more", "stuff"}))
+			Expect(args).To(HaveLen(4))
+			Expect(args).To(Equal([]string{"one", "two", "three", fmt.Sprintf("@%s",filepath.Join(ctx.Application.Path,"target/more-stuff.txt"))}))
 		})
 
-		it("works with quotes", func() {
+		it("works with quotes in the file", func() {
 			inputArgs := []string{"one", "two", "three"}
 			args, startClass, err := native.UserFileArguments{
 				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"),
@@ -156,18 +157,24 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(startClass).To(Equal(""))
 			Expect(args).To(HaveLen(4))
-			Expect(args).To(Equal([]string{"one", "two", "three", "more stuff"}))
+			Expect(args).To(Equal([]string{"one", "two", "three", fmt.Sprintf("@%s", filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))}))
+			bits, err := ioutil.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(bits)).To(Equal("before after -other=\"my path\""))
 		})
 
-		it("allows a user argument to override an input argument", func() {
-			inputArgs := []string{"one=input", "two", "three"}
-			args, startClass, err := native.UserFileArguments{
-				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/override.txt"),
-			}.Configure(inputArgs)
+		it("removes the class name argument if found", func() {
+			args, _, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/more-stuff-class.txt"),
+			}.Configure(nil)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(startClass).To(Equal(""))
-			Expect(args).To(HaveLen(3))
-			Expect(args).To(Equal([]string{"two", "three", "one=output"}))
+			Expect(args).To(HaveLen(1))
+			Expect(args).To(Equal([]string{
+				fmt.Sprintf("@%s",filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt")),
+			}))
+			bits, err := ioutil.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-class.txt"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(bits)).To(Equal("after"))
 		})
 	})
 
