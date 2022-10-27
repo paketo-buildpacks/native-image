@@ -87,6 +87,15 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
 			return e.Command == "native-image" &&
+				(strings.HasPrefix(e.Args[0], "@"))
+		})).Run(func(args mock.Arguments) {
+			exec := args.Get(0).(effect.Execution)
+			lastArg := exec.Args[len(exec.Args)-1]
+			Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+		}).Return(nil)
+
+		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+			return e.Command == "native-image" &&
 				(e.Args[0] == "test-argument-1" || (e.Args[0] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[1] == "test-argument-1"))
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
@@ -161,8 +170,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Args).To(Equal([]string{
-				"test-argument-1",
-				"test-argument-2",
+				fmt.Sprintf("@%s", argsFile),
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
 				"-cp",
 				strings.Join([]string{

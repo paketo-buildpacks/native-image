@@ -23,46 +23,39 @@ api = "0.7"
   keywords    = ["java", "native-image", "spring-boot"]
   sbom-formats = ["application/vnd.cyclonedx+json", "application/vnd.syft+json"]
 
-[[buildpack.licenses]]
-type = "Apache-2.0"
-uri  = "https://github.com/paketo-buildpacks/native-image/blob/main/LICENSE"
-
-[[stacks]]
-id = "*"
-
-[[metadata.configurations]]
-name        = "BP_NATIVE_IMAGE"
-description = "enable native image build"
-build       = true
-
-[[metadata.configurations]]
-name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
-description = "arguments to pass to the native-image command"
-build       = true
-
-[[metadata.configurations]]
-name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE"
-description = "a file with arguments to pass to the native-image command"
-build       = true
-
-[[metadata.configurations]]
-name        = "BP_BINARY_COMPRESSION_METHOD"
-description = "Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`"
-build       = true
-
-[[metadata.configurations]]
-name        = "BP_NATIVE_IMAGE_BUILT_ARTIFACT"
-description = "the built application artifact explicitly, required if building from a JAR"
-build       = true
+  [[buildpack.licenses]]
+    type = "Apache-2.0"
+    uri  = "https://github.com/paketo-buildpacks/native-image/blob/main/LICENSE"
 
 [metadata]
-pre-package   = "scripts/build.sh"
-include-files = [
-  "LICENSE",
-  "NOTICE",
-  "README.md",
-  "bin/build",
-  "bin/detect",
-  "bin/main",
-  "buildpack.toml",
-]
+  pre-package   = "scripts/build.sh"
+  include-files = ["LICENSE", "NOTICE", "README.md", "bin/build", "bin/detect", "bin/main", "buildpack.toml"]
+
+  [[metadata.configurations]]
+    name        = "BP_NATIVE_IMAGE"
+    description = "enable native image build"
+    build       = true
+
+  [[metadata.configurations]]
+    name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
+    description = "arguments to pass to the native-image command"
+    build       = true
+
+  [[metadata.configurations]]
+    name        = "BP_BINARY_COMPRESSION_METHOD"
+    description = "Compression mechanism used to reduce binary size. Options: `none` (default), `upx` or `gzexe`"
+    build       = true
+
+  [[metadata.configurations]]
+    name        = "BP_NATIVE_IMAGE_BUILT_ARTIFACT"
+    description = "the built application artifact explicitly, required if building from a JAR"
+    build       = true
+
+  [[metadata.configurations]]
+    name        = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE"
+    description = "a file with arguments to pass to the native-image command"
+    build       = true
+
+[[stacks]]
+  id = "*"
+
