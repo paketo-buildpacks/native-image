@@ -32,9 +32,8 @@ const (
 	PlanEntryNativeImage        = "native-image-application"
 	PlanEntryNativeImageBuilder = "native-image-builder"
 	PlanEntryJVMApplication     = "jvm-application"
-	PlanEntrySpringBoot    		= "spring-boot"
-	PlanEntryNativeArgFile		= "native-image-argfile"
-	PlanEntryUpx       		    = "upx"
+	PlanEntrySpringBoot         = "spring-boot"
+	PlanEntryUpx                = "upx"
 )
 
 type Detect struct{}
@@ -79,24 +78,6 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 						Name: PlanEntryNativeImageBuilder,
 					},
 					{
-						Name: PlanEntryNativeArgFile,
-					},
-					{
-						Name: PlanEntryNativeImage,
-					},
-				},
-			},
-			{
-				Provides: []libcnb.BuildPlanProvide{
-					{
-						Name: PlanEntryNativeImage,
-					},
-				},
-				Requires: []libcnb.BuildPlanRequire{
-					{
-						Name: PlanEntryNativeImageBuilder,
-					},
-					{
 						Name:     PlanEntryJVMApplication,
 						Metadata: map[string]interface{}{"native-image": true},
 					},
@@ -109,17 +90,9 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 		return libcnb.DetectResult{}, err
 	} else if ok {
 		for i := range result.Plans {
-			found := false
-			for _, r := range result.Plans[i].Requires {
-				if r.Name == PlanEntryNativeImage{
-					found = true
-				}
-			}
-			if !found {
-				result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
-					Name: PlanEntryNativeImage,
-				})
-			}
+			result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
+				Name: PlanEntryNativeImage,
+			})
 		}
 	}
 
