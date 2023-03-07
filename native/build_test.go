@@ -18,7 +18,6 @@ package native_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,13 +44,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
-		var err error
-
-		ctx.Application.Path, err = ioutil.TempDir("", "build-application")
-		Expect(err).NotTo(HaveOccurred())
-
-		ctx.Layers.Path, err = ioutil.TempDir("", "build-layers")
-		Expect(err).NotTo(HaveOccurred())
+		ctx.Application.Path = t.TempDir()
+		ctx.Layers.Path = t.TempDir()
 
 		sbomScanner = mocks.SBOMScanner{}
 		sbomScanner.On("ScanLaunch", ctx.Application.Path, libcnb.SyftJSON, libcnb.CycloneDXJSON).Return(nil)
@@ -80,7 +74,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 	})
 
 	it("contributes native image layer", func() {
-		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+		Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
 Spring-Boot-Version: 1.1.1
 Spring-Boot-Classes: BOOT-INF/classes
 Spring-Boot-Lib: BOOT-INF/lib
@@ -94,9 +88,9 @@ Start-Class: test-start-class
 		Expect(result.Layers).To(HaveLen(1))
 		Expect(result.Layers[0].(native.NativeImage).Arguments).To(BeEmpty())
 		Expect(result.Processes).To(ContainElements(
-			libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-			libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-			libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true, Default: true},
+			libcnb.Process{Type: "native-image", Command: "./test-start-class", Direct: true},
+			libcnb.Process{Type: "task", Command: "./test-start-class", Direct: true},
+			libcnb.Process{Type: "web", Command: "./test-start-class", Direct: true, Default: true},
 		))
 		sbomScanner.AssertCalled(t, "ScanLaunch", ctx.Application.Path, libcnb.SyftJSON, libcnb.CycloneDXJSON)
 	})
@@ -111,7 +105,7 @@ Start-Class: test-start-class
 		})
 
 		it("contributes native image layer and prints a deprecation warning", func() {
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
 Spring-Boot-Version: 1.1.1
 Spring-Boot-Classes: BOOT-INF/classes
 Spring-Boot-Lib: BOOT-INF/lib
@@ -125,9 +119,9 @@ Start-Class: test-start-class
 			Expect(result.Layers).To(HaveLen(1))
 			Expect(result.Layers[0].(native.NativeImage).Arguments).To(BeEmpty())
 			Expect(result.Processes).To(ContainElements(
-				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true},
-				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-start-class"), Direct: true, Default: true},
+				libcnb.Process{Type: "native-image", Command: "./test-start-class", Direct: true},
+				libcnb.Process{Type: "task", Command: "./test-start-class", Direct: true},
+				libcnb.Process{Type: "web", Command: "./test-start-class", Direct: true, Default: true},
 			))
 
 			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE has been deprecated. Please use $BP_NATIVE_IMAGE instead."))
@@ -145,7 +139,7 @@ Start-Class: test-start-class
 		})
 
 		it("contributes native image build arguments", func() {
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
 Spring-Boot-Version: 1.1.1
 Spring-Boot-Classes: BOOT-INF/classes
 Spring-Boot-Lib: BOOT-INF/lib
@@ -170,7 +164,7 @@ Start-Class: test-start-class
 		})
 
 		it("contributes native image build arguments and prints a deprecation warning", func() {
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
 Spring-Boot-Version: 1.1.1
 Spring-Boot-Classes: BOOT-INF/classes
 Spring-Boot-Lib: BOOT-INF/lib
@@ -208,9 +202,9 @@ Start-Class: test-start-class
 
 			Expect(result.Layers[0].(native.NativeImage).JarFilePattern).To(Equal("target/*.jar"))
 			Expect(result.Processes).To(ContainElements(
-				libcnb.Process{Type: "native-image", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true},
-				libcnb.Process{Type: "task", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true},
-				libcnb.Process{Type: "web", Command: filepath.Join(ctx.Application.Path, "test-fixture"), Direct: true, Default: true},
+				libcnb.Process{Type: "native-image", Command: "./test-fixture", Direct: true},
+				libcnb.Process{Type: "task", Command: "./test-fixture", Direct: true},
+				libcnb.Process{Type: "web", Command: "./test-fixture", Direct: true, Default: true},
 			))
 		})
 	})

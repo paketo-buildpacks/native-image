@@ -115,7 +115,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to find required manifest property\n%w", err)
 	}
 
-	command := filepath.Join(context.Application.Path, startClass)
+	command := "./" + startClass
 	result.Processes = append(result.Processes,
 		libcnb.Process{Type: "native-image", Command: command, Direct: true},
 		libcnb.Process{Type: "task", Command: command, Direct: true},
