@@ -18,10 +18,9 @@ package native
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/buildpacks/libcnb"
 	"github.com/paketo-buildpacks/libpak"
+	"github.com/paketo-buildpacks/libpak/sherpa"
 )
 
 const (
@@ -116,16 +115,8 @@ func (d Detect) upxCompressionEnabled(cr libpak.ConfigurationResolver) bool {
 }
 
 func (d Detect) nativeImageEnabled(cr libpak.ConfigurationResolver) (bool, error) {
-	if val, ok := cr.Resolve(ConfigNativeImage); ok {
-		enable, err := strconv.ParseBool(val)
-		if err != nil {
-			return false, fmt.Errorf(
-				"invalid value '%s' for key '%s': expected one of [1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False]",
-				val,
-				ConfigNativeImage,
-			)
-		}
-		return enable, nil
+	if _, ok := cr.Resolve(ConfigNativeImage); ok {
+		return sherpa.ResolveBoolErr(ConfigNativeImage)
 	}
 	_, ok := cr.Resolve(DeprecatedConfigNativeImage)
 	return ok, nil
