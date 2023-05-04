@@ -35,11 +35,10 @@ import (
 )
 
 const (
-	ConfigNativeImageArgs           = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
-	DeprecatedConfigNativeImageArgs = "BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS"
-	CompressorUpx                   = "upx"
-	CompressorGzexe                 = "gzexe"
-	CompressorNone                  = "none"
+	ConfigNativeImageArgs = "BP_NATIVE_IMAGE_BUILD_ARGUMENTS"
+	CompressorUpx         = "upx"
+	CompressorGzexe       = "gzexe"
+	CompressorNone        = "none"
 )
 
 type Build struct {
@@ -61,23 +60,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
 
-	if _, ok := cr.Resolve(DeprecatedConfigNativeImage); ok {
-		warn(b.Logger, fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
-			DeprecatedConfigNativeImage,
-			ConfigNativeImage,
-		))
-	}
-
 	args, ok := cr.Resolve(ConfigNativeImageArgs)
-	if !ok {
-		if args, ok = cr.Resolve(DeprecatedConfigNativeImageArgs); ok {
-			warn(b.Logger, fmt.Sprintf("$%s has been deprecated. Please use $%s instead.",
-				DeprecatedConfigNativeImageArgs,
-				ConfigNativeImageArgs,
-			))
-		}
-	}
-
 	jarFilePattern, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILT_ARTIFACT")
 	argsFile, _ := cr.Resolve("BP_NATIVE_IMAGE_BUILD_ARGUMENTS_FILE")
 
