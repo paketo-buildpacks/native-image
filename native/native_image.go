@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"github.com/paketo-buildpacks/native-image/v5/native/slices"
 	"io"
 	"io/ioutil"
 	"os"
@@ -69,9 +70,14 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to process arguments\n%w", err)
 	}
+
+	if !slices.Contains(arguments, "--auto-fallback") && !slices.Contains(arguments, "--force-fallback") {
+		arguments = append([]string{"--no-fallback"}, arguments...)
+	}
+
 	moduleVar := "USE_NATIVE_IMAGE_JAVA_PLATFORM_MODULE_SYSTEM"
-	if _, set := os.LookupEnv(moduleVar); !set{
-		if err := os.Setenv(moduleVar, "false"); err != nil{
+	if _, set := os.LookupEnv(moduleVar); !set {
+		if err := os.Setenv(moduleVar, "false"); err != nil {
 			n.Logger.Bodyf("unable to set %s for GraalVM 22.2, if your build fails, you may need to set this manually at build time", moduleVar)
 		}
 	}
@@ -88,10 +94,10 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	nativeBinaryHash := fmt.Sprintf("%x", sha256.Sum256(buf.Bytes()))
 
 	contributor := libpak.NewLayerContributor("Native Image", map[string]interface{}{
-		"files":       files,
-		"arguments":   arguments,
-		"compression": n.Compressor,
-		"version-hash":        nativeBinaryHash,
+		"files":        files,
+		"arguments":    arguments,
+		"compression":  n.Compressor,
+		"version-hash": nativeBinaryHash,
 	}, libcnb.LayerTypes{
 		Cache: true,
 	})

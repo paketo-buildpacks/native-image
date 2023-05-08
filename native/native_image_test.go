@@ -96,7 +96,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
 			return e.Command == "native-image" &&
-				(e.Args[0] == "test-argument-1" || (e.Args[0] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[1] == "test-argument-1"))
+				(e.Args[0] == "--no-fallback" || (e.Args[1] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[0] == "--no-fallback"))
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
 			lastArg := exec.Args[len(exec.Args)-1]
@@ -127,6 +127,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Args).To(Equal([]string{
+				"--no-fallback",
 				"test-argument-1",
 				"test-argument-2",
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
@@ -143,6 +144,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Args).To(Equal([]string{
+				"--no-fallback",
 				"test-argument-1",
 				"test-argument-2",
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
@@ -170,7 +172,102 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Args).To(Equal([]string{
+				"--no-fallback",
 				fmt.Sprintf("@%s", argsFile),
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
+				"-cp",
+				strings.Join([]string{
+					ctx.Application.Path,
+					"manifest-class-path",
+				}, ":"),
+				"test-start-class",
+			}))
+		})
+	})
+
+	context("user opts out of --no-fallback", func() {
+		var err error
+
+		it("contributes native image with --force-fallback", func() {
+			executorForceFallback := &mocks.Executor{}
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--force-fallback test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
+			nativeImage.Logger = bard.NewLogger(io.Discard)
+			Expect(err).NotTo(HaveOccurred())
+			nativeImage.Executor = executorForceFallback
+
+			executorForceFallback.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "native-image" && len(e.Args) == 1 && e.Args[0] == "--version"
+			})).Run(func(args mock.Arguments) {
+				exec := args.Get(0).(effect.Execution)
+				_, err := exec.Stdout.Write([]byte("1.2.3"))
+				Expect(err).To(Succeed())
+			}).Return(nil)
+
+			executorForceFallback.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "native-image" &&
+					(e.Args[0] == "--force-fallback" || (e.Args[1] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[0] == "--force-fallback"))
+			})).Run(func(args mock.Arguments) {
+				exec := args.Get(0).(effect.Execution)
+				lastArg := exec.Args[len(exec.Args)-1]
+				Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+			}).Return(nil)
+
+			layer, err = ctx.Layers.Layer("test-layer")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executorForceFallback.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"--force-fallback",
+				"test-argument-1",
+				"test-argument-2",
+				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
+				"-cp",
+				strings.Join([]string{
+					ctx.Application.Path,
+					"manifest-class-path",
+				}, ":"),
+				"test-start-class",
+			}))
+		})
+
+		it("contributes native image with --auto-fallback", func() {
+			executorAutoFallback := &mocks.Executor{}
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--auto-fallback test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
+			nativeImage.Logger = bard.NewLogger(io.Discard)
+			Expect(err).NotTo(HaveOccurred())
+			nativeImage.Executor = executorAutoFallback
+
+			executorAutoFallback.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "native-image" && len(e.Args) == 1 && e.Args[0] == "--version"
+			})).Run(func(args mock.Arguments) {
+				exec := args.Get(0).(effect.Execution)
+				_, err := exec.Stdout.Write([]byte("1.2.3"))
+				Expect(err).To(Succeed())
+			}).Return(nil)
+
+			executorAutoFallback.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
+				return e.Command == "native-image" &&
+					(e.Args[0] == "--auto-fallback" || (e.Args[1] == "-H:+StaticExecutableWithDynamicLibC" && e.Args[0] == "--auto-fallback"))
+			})).Run(func(args mock.Arguments) {
+				exec := args.Get(0).(effect.Execution)
+				lastArg := exec.Args[len(exec.Args)-1]
+				Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+			}).Return(nil)
+
+			layer, err = ctx.Layers.Layer("test-layer")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			execution := executorAutoFallback.Calls[1].Arguments[0].(effect.Execution)
+			Expect(execution.Args).To(Equal([]string{
+				"--auto-fallback",
+				"test-argument-1",
+				"test-argument-2",
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-start-class")),
 				"-cp",
 				strings.Join([]string{
@@ -198,6 +295,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Args).To(Equal([]string{
+				"--no-fallback",
 				"test-argument-1",
 				"test-argument-2",
 				fmt.Sprintf("-H:Name=%s", filepath.Join(layer.Path, "test-main-class")),
@@ -291,6 +389,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			execution := executor.Calls[1].Arguments[0].(effect.Execution)
 			Expect(execution.Command).To(Equal("native-image"))
 			Expect(execution.Args).To(Equal([]string{
+				"--no-fallback",
 				"-H:+StaticExecutableWithDynamicLibC",
 				"test-argument-1",
 				"test-argument-2",
