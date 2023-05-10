@@ -67,6 +67,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								Name: "native-image-builder",
 							},
 							{
+								Name: "native-processed",
+							},
+							{
+								Name: "native-image-application",
+							},
+						},
+					},
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
 								Name:     "jvm-application",
 								Metadata: map[string]interface{}{"native-image": true},
 							},
@@ -106,6 +122,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								{
 									Name:     "spring-boot",
 									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name: "native-processed",
 								},
 								{
 									Name: "native-image-application",
@@ -162,6 +194,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								{
 									Name:     "spring-boot",
 									Metadata: map[string]interface{}{"native-image": true},
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name: "native-processed",
+								},
+								{
+									Name: "native-image-application",
 								},
 							},
 						},
@@ -255,6 +303,25 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 									Name: "native-image-builder",
 								},
 								{
+									Name: "native-processed",
+								},
+								{
+									Name: "native-image-application",
+								},
+								{
+									Name: "upx",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
 									Name:     "jvm-application",
 									Metadata: map[string]interface{}{"native-image": true},
 								},
@@ -299,6 +366,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								{
 									Name:     "spring-boot",
 									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name: "native-processed",
 								},
 								{
 									Name: "native-image-application",
@@ -370,6 +453,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 									Name: "native-image-builder",
 								},
 								{
+									Name: "native-processed",
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
 									Name:     "jvm-application",
 									Metadata: map[string]interface{}{"native-image": true},
 								},
@@ -411,6 +510,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 								{
 									Name:     "spring-boot",
 									Metadata: map[string]interface{}{"native-image": true},
+								},
+								{
+									Name: "native-image-application",
+								},
+							},
+						},
+						{
+							Provides: []libcnb.BuildPlanProvide{
+								{Name: "native-image-application"},
+							},
+							Requires: []libcnb.BuildPlanRequire{
+								{
+									Name: "native-image-builder",
+								},
+								{
+									Name: "native-processed",
 								},
 								{
 									Name: "native-image-application",
@@ -468,6 +583,22 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 							{
 								Name:     "spring-boot",
 								Metadata: map[string]interface{}{"native-image": true},
+							},
+							{
+								Name: "native-image-application",
+							},
+						},
+					},
+					{
+						Provides: []libcnb.BuildPlanProvide{
+							{Name: "native-image-application"},
+						},
+						Requires: []libcnb.BuildPlanRequire{
+							{
+								Name: "native-image-builder",
+							},
+							{
+								Name: "native-processed",
 							},
 							{
 								Name: "native-image-application",
