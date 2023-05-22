@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/buildpacks/libcnb"
 	"github.com/paketo-buildpacks/libpak"
+	"github.com/paketo-buildpacks/libpak/bard"
 	"github.com/paketo-buildpacks/libpak/sherpa"
 )
 
@@ -35,7 +36,9 @@ const (
 	PlanEntryUpx                = "upx"
 )
 
-type Detect struct{}
+type Detect struct {
+	Logger bard.Logger
+}
 
 func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error) {
 	cr, err := libpak.NewConfigurationResolver(context.Buildpack, nil)
@@ -86,6 +89,7 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 	}
 
 	if ok, err := d.nativeImageEnabled(cr); err != nil {
+		d.Logger.Infof("SKIPPED: The BP_NATIVE_IMAGE environment variable was not set to true")
 		return libcnb.DetectResult{}, err
 	} else if ok {
 		for i := range result.Plans {
