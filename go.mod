@@ -12,7 +12,7 @@ require (
 	github.com/paketo-buildpacks/libjvm v1.42.0
 	github.com/paketo-buildpacks/libpak v1.65.0
 	github.com/sclevine/spec v1.4.0
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 )
 
 require (
