@@ -26,9 +26,7 @@ import (
 
 const (
 	ConfigNativeImage           = "BP_NATIVE_IMAGE"
-	DeprecatedConfigNativeImage = "BP_BOOT_NATIVE_IMAGE"
 	BinaryCompressionMethod     = "BP_BINARY_COMPRESSION_METHOD"
-
 	PlanEntryNativeImage        = "native-image-application"
 	PlanEntryNativeImageBuilder = "native-image-builder"
 	PlanEntryJVMApplication     = "jvm-application"
@@ -122,6 +120,5 @@ func (d Detect) nativeImageEnabled(cr libpak.ConfigurationResolver) (bool, error
 	if _, ok := cr.Resolve(ConfigNativeImage); ok {
 		return sherpa.ResolveBoolErr(ConfigNativeImage)
 	}
-	_, ok := cr.Resolve(DeprecatedConfigNativeImage)
-	return ok, nil
+	return false, nil
 }

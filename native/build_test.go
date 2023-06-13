@@ -95,40 +95,6 @@ Start-Class: test-start-class
 		sbomScanner.AssertCalled(t, "ScanLaunch", ctx.Application.Path, libcnb.SyftJSON, libcnb.CycloneDXJSON)
 	})
 
-	context("BP_BOOT_NATIVE_IMAGE", func() {
-		it.Before(func() {
-			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE", "true")).To(Succeed())
-		})
-
-		it.After(func() {
-			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE")).To(Succeed())
-		})
-
-		it("contributes native image layer and prints a deprecation warning", func() {
-			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
-Spring-Boot-Version: 1.1.1
-Spring-Boot-Classes: BOOT-INF/classes
-Spring-Boot-Lib: BOOT-INF/lib
-Spring-Boot-Layers-Index: layers.idx
-Start-Class: test-start-class
-`), 0644)).To(Succeed())
-
-			result, err := build.Build(ctx)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(result.Layers).To(HaveLen(1))
-			Expect(result.Layers[0].(native.NativeImage).Arguments).To(BeEmpty())
-			Expect(result.Processes).To(ContainElements(
-				libcnb.Process{Type: "native-image", Command: "./test-start-class", Direct: true},
-				libcnb.Process{Type: "task", Command: "./test-start-class", Direct: true},
-				libcnb.Process{Type: "web", Command: "./test-start-class", Direct: true, Default: true},
-			))
-
-			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE has been deprecated. Please use $BP_NATIVE_IMAGE instead."))
-			sbomScanner.AssertCalled(t, "ScanLaunch", ctx.Application.Path, libcnb.SyftJSON, libcnb.CycloneDXJSON)
-		})
-	})
-
 	context("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", func() {
 		it.Before(func() {
 			Expect(os.Setenv("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "test-native-image-argument")).To(Succeed())
@@ -151,33 +117,6 @@ Start-Class: test-start-class
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal("test-native-image-argument"))
-		})
-	})
-
-	context("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", func() {
-		it.Before(func() {
-			Expect(os.Setenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS", "test-native-image-argument")).To(Succeed())
-		})
-
-		it.After(func() {
-			Expect(os.Unsetenv("BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS")).To(Succeed())
-		})
-
-		it("contributes native image build arguments and prints a deprecation warning", func() {
-			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
-Spring-Boot-Version: 1.1.1
-Spring-Boot-Classes: BOOT-INF/classes
-Spring-Boot-Lib: BOOT-INF/lib
-Spring-Boot-Layers-Index: layers.idx
-Start-Class: test-start-class
-`), 0644)).To(Succeed())
-
-			result, err := build.Build(ctx)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(result.Layers[0].(native.NativeImage).Arguments).To(Equal("test-native-image-argument"))
-
-			Expect(out.String()).To(ContainSubstring("$BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS has been deprecated. Please use $BP_NATIVE_IMAGE_BUILD_ARGUMENTS instead."))
 		})
 	})
 
