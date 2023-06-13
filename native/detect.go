@@ -30,6 +30,7 @@ const (
 	BinaryCompressionMethod     = "BP_BINARY_COMPRESSION_METHOD"
 
 	PlanEntryNativeImage        = "native-image-application"
+	PlanEntryNativeProcessed    = "native-processed"
 	PlanEntryNativeImageBuilder = "native-image-builder"
 	PlanEntryJVMApplication     = "jvm-application"
 	PlanEntrySpringBoot         = "spring-boot"
@@ -80,6 +81,24 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 						Name: PlanEntryNativeImageBuilder,
 					},
 					{
+						Name: PlanEntryNativeProcessed,
+					},
+					{
+						Name: PlanEntryNativeImage,
+					},
+				},
+			},
+			{
+				Provides: []libcnb.BuildPlanProvide{
+					{
+						Name: PlanEntryNativeImage,
+					},
+				},
+				Requires: []libcnb.BuildPlanRequire{
+					{
+						Name: PlanEntryNativeImageBuilder,
+					},
+					{
 						Name:     PlanEntryJVMApplication,
 						Metadata: map[string]interface{}{"native-image": true},
 					},
@@ -93,9 +112,17 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 		return libcnb.DetectResult{}, err
 	} else if ok {
 		for i := range result.Plans {
-			result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
-				Name: PlanEntryNativeImage,
-			})
+			found := false
+			for _, r := range result.Plans[i].Requires {
+				if r.Name == PlanEntryNativeImage {
+					found = true
+				}
+			}
+			if !found {
+				result.Plans[i].Requires = append(result.Plans[i].Requires, libcnb.BuildPlanRequire{
+					Name: PlanEntryNativeImage,
+				})
+			}
 		}
 	}
 

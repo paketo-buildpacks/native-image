@@ -9,7 +9,8 @@ Most users should not use this component buildpack directly and should instead u
 This buildpack will participate if one the following conditions are met:
 
 * `$BP_NATIVE_IMAGE` is set.
-*  An upstream buildpack requests `native-image-application` in the build plan.
+* An upstream buildpack requests `native-image-application` in the build plan.
+* An upstream buildpack provides `native-processed` in the build plan.
 
 The buildpack will do the following:
 
