@@ -161,22 +161,37 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		}
 	}
 
-	src := filepath.Join(layer.Path, startClass)
-	in, err := os.Open(src)
+	/**
+	 * native-image with -g since 22.3 splits debug info in separate file
+	 */
+	compiled, err := ioutil.ReadDir(layer.Path)
 	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", filepath.Join(layer.Path, startClass), err)
+		return libcnb.Layer{}, fmt.Errorf("unable to list children of %s\n%w", n.ApplicationPath, err)
 	}
-	defer in.Close()
+	for _, file := range compiled {
+		src := filepath.Join(layer.Path, file.Name())
+		in, err := os.Open(src)
+		fileInfo, err := in.Stat()
+		if fileInfo.IsDir() {
+			/*TODO: for now skip directories, but perhaps it's better to zip its content */
+			continue
+		}
+		if err != nil {
+			return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", filepath.Join(layer.Path, startClass), err)
+		}
+		defer in.Close()
 
-	dst := filepath.Join(n.ApplicationPath, startClass)
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", dst, err)
-	}
-	defer out.Close()
+		dst := filepath.Join(n.ApplicationPath, file.Name())
+		out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+		if err != nil {
+			return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", dst, err)
+		}
+		defer out.Close()
 
-	if _, err := io.Copy(out, in); err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to copy\n%w", err)
+		if _, err := io.Copy(out, in); err != nil {
+			return libcnb.Layer{}, fmt.Errorf("unable to copy %s -> %s \n%w", in.Name(), out.Name(), err)
+		}
+
 	}
 
 	return layer, nil
