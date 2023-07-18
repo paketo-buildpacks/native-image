@@ -75,13 +75,6 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		arguments = append([]string{"--no-fallback"}, arguments...)
 	}
 
-	moduleVar := "USE_NATIVE_IMAGE_JAVA_PLATFORM_MODULE_SYSTEM"
-	if _, set := os.LookupEnv(moduleVar); !set {
-		if err := os.Setenv(moduleVar, "false"); err != nil {
-			n.Logger.Bodyf("unable to set %s for GraalVM 22.2, if your build fails, you may need to set this manually at build time", moduleVar)
-		}
-	}
-
 	buf := &bytes.Buffer{}
 	if err := n.Executor.Execute(effect.Execution{
 		Command: "native-image",
