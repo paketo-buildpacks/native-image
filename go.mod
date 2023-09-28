@@ -8,9 +8,9 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/onsi/gomega v1.27.10
+	github.com/onsi/gomega v1.28.0
 	github.com/paketo-buildpacks/libjvm v1.43.2
-	github.com/paketo-buildpacks/libpak v1.66.2
+	github.com/paketo-buildpacks/libpak v1.67.0
 	github.com/sclevine/spec v1.4.0
 	github.com/stretchr/testify v1.8.4
 )
