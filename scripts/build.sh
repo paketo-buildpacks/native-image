@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-GOOS="linux" go build -ldflags='-s -w' -o bin/main github.com/paketo-buildpacks/native-image/v5/cmd/main
+GOMOD=$(head -1 go.mod | awk '{print $2}')
+GOOS="linux" go build -ldflags='-s -w' -o linux/amd64/bin/main "$GOMOD/cmd/main"
+GOOS="linux" GOARCH="arm64" go build -ldflags='-s -w' -o linux/arm64/bin/main "$GOMOD/cmd/main"
 
 if [ "${STRIP:-false}" != "false" ]; then
-  strip bin/main
+  strip linux/amd64/bin/main linux/arm64/bin/main
 fi
 
 if [ "${COMPRESS:-none}" != "none" ]; then
-  $COMPRESS bin/main
+  $COMPRESS linux/amd64/bin/main linux/arm64/bin/main
 fi
 
-ln -fs main bin/build
-ln -fs main bin/detect
+ln -fs main linux/amd64/bin/build
+ln -fs main linux/arm64/bin/build
+ln -fs main linux/amd64/bin/detect
+ln -fs main linux/arm64/bin/detect
