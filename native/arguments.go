@@ -18,7 +18,6 @@ package native
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,20 +81,20 @@ type UserFileArguments struct {
 // Configure returns the inputArgs plus the additional arguments provided via argfile, setting via the '@argfile' format
 func (u UserFileArguments) Configure(inputArgs []string) ([]string, string, error) {
 
-	rawArgs, err := ioutil.ReadFile(u.ArgumentsFile)
+	rawArgs, err := os.ReadFile(u.ArgumentsFile)
 	if err != nil {
 		return []string{}, "", fmt.Errorf("read arguments from %s\n%w", u.ArgumentsFile, err)
 	}
 
 	fileArgs := strings.Split(string(rawArgs), "\n")
-	if len(fileArgs) == 1{
+	if len(fileArgs) == 1 {
 		fileArgs = strings.Split(string(rawArgs), " ")
 	}
 
 	if containsArg("-jar", fileArgs) {
 		fileArgs = replaceJarArguments(fileArgs)
 		newArgList := strings.Join(fileArgs, " ")
-		if err = os.WriteFile(u.ArgumentsFile,[]byte(newArgList),0644); err != nil{
+		if err = os.WriteFile(u.ArgumentsFile, []byte(newArgList), 0644); err != nil {
 			return []string{}, "", fmt.Errorf("unable to write to arguments file %s\n%w", u.ArgumentsFile, err)
 		}
 	}
@@ -105,7 +104,6 @@ func (u UserFileArguments) Configure(inputArgs []string) ([]string, string, erro
 	return inputArgs, "", nil
 
 }
-
 
 // containsArg checks if needle is found in haystack
 //

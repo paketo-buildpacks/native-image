@@ -19,7 +19,6 @@ package native_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,27 +49,22 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
-		var err error
-
-		ctx.Application.Path, err = ioutil.TempDir("", "native-image-application")
-		Expect(err).NotTo(HaveOccurred())
-
-		ctx.Layers.Path, err = ioutil.TempDir("", "native-image-layers")
-		Expect(err).NotTo(HaveOccurred())
+		ctx.Application.Path = t.TempDir()
+		ctx.Layers.Path = t.TempDir()
 
 		executor = &mocks.Executor{}
 
 		props = properties.NewProperties()
 
-		_, _, err = props.Set("Start-Class", "test-start-class")
+		_, _, err := props.Set("Start-Class", "test-start-class")
 		Expect(err).NotTo(HaveOccurred())
 		_, _, err = props.Set("Class-Path", "manifest-class-path")
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "fixture-marker"), []byte{}, 0644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "fixture-marker"), []byte{}, 0644)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "BOOT-INF"), 0755)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "META-INF"), 0755)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte{}, 0644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte{}, 0644)).To(Succeed())
 
 		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
 		nativeImage.Logger = bard.NewLogger(io.Discard)
@@ -91,7 +85,9 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
 			lastArg := exec.Args[len(exec.Args)-1]
-			Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, "libawt.so"), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, "libawt_headless.so"), []byte{}, 0644)).To(Succeed())
 		}).Return(nil)
 
 		executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
@@ -100,7 +96,9 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		})).Run(func(args mock.Arguments) {
 			exec := args.Get(0).(effect.Execution)
 			lastArg := exec.Args[len(exec.Args)-1]
-			Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, "libawt.so"), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(layer.Path, "libawt_headless.so"), []byte{}, 0644)).To(Succeed())
 		}).Return(nil)
 
 		layer, err = ctx.Layers.Layer("test-layer")
@@ -134,6 +132,25 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 				"-cp", "some-classpath",
 				"test-start-class",
 			}))
+
+			Expect(filepath.Join(ctx.Application.Path, "BOOT-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "META-INF")).ToNot(BeADirectory())
+
+			Expect(filepath.Join(layer.Path, "test-start-class")).To(BeARegularFile())
+			Expect(filepath.Join(layer.Path, "libawt.so")).To(BeARegularFile())
+			Expect(filepath.Join(layer.Path, "libawt_headless.so")).To(BeARegularFile())
+
+			info, err := os.Stat(filepath.Join(layer.Path, "test-start-class"))
+			Expect(err).NotTo(HaveOccurred())
+			fmt.Println("info.Mode().Perm(): ", info.Mode().Perm().String())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0755)))
+
+			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "libawt.so")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "libawt_headless.so")).To(BeARegularFile())
+			info, err = os.Stat(filepath.Join(ctx.Application.Path, "test-start-class"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0755)))
 		})
 	})
 
@@ -160,7 +177,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		it("contributes native image with Class-Path from manifest and args from a file", func() {
 			argsFile := filepath.Join(ctx.Application.Path, "target", "args.txt")
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
-			Expect(ioutil.WriteFile(argsFile, []byte(`test-argument-1 test-argument-2`), 0644)).To(Succeed())
+			Expect(os.WriteFile(argsFile, []byte(`test-argument-1 test-argument-2`), 0644)).To(Succeed())
 
 			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
@@ -209,7 +226,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			})).Run(func(args mock.Arguments) {
 				exec := args.Get(0).(effect.Execution)
 				lastArg := exec.Args[len(exec.Args)-1]
-				Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
 			}).Return(nil)
 
 			layer, err = ctx.Layers.Layer("test-layer")
@@ -254,7 +271,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			})).Run(func(args mock.Arguments) {
 				exec := args.Get(0).(effect.Execution)
 				lastArg := exec.Args[len(exec.Args)-1]
-				Expect(ioutil.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(layer.Path, lastArg), []byte{}, 0644)).To(Succeed())
 			}).Return(nil)
 
 			layer, err = ctx.Layers.Layer("test-layer")
@@ -316,7 +333,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
 				return e.Command == "upx"
 			})).Run(func(args mock.Arguments) {
-				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("upx-compressed"), 0644)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("upx-compressed"), 0644)).To(Succeed())
 			}).Return(nil)
 
 			_, err := nativeImage.Contribute(layer)
@@ -331,7 +348,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			bin := filepath.Join(layer.Path, "test-start-class")
 			Expect(bin).To(BeARegularFile())
 
-			data, err := ioutil.ReadFile(bin)
+			data, err := os.ReadFile(bin)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(data).To(ContainSubstring("upx-compressed"))
 		})
@@ -344,8 +361,8 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			executor.On("Execute", mock.MatchedBy(func(e effect.Execution) bool {
 				return e.Command == "gzexe"
 			})).Run(func(args mock.Arguments) {
-				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("gzexe-compressed"), 0644)).To(Succeed())
-				Expect(ioutil.WriteFile(filepath.Join(layer.Path, "test-start-class~"), []byte("original"), 0644)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(layer.Path, "test-start-class"), []byte("gzexe-compressed"), 0644)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(layer.Path, "test-start-class~"), []byte("original"), 0644)).To(Succeed())
 			}).Return(nil)
 
 			_, err := nativeImage.Contribute(layer)
@@ -360,7 +377,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			bin := filepath.Join(layer.Path, "test-start-class")
 			Expect(bin).To(BeARegularFile())
 
-			data, err := ioutil.ReadFile(bin)
+			data, err := os.ReadFile(bin)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(data).To(ContainSubstring("gzexe-compressed"))
 			Expect(filepath.Join(layer.Path, "test-start-class~")).ToNot(BeAnExistingFile())
@@ -373,7 +390,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		it("contributes a static native image executable with dynamic libc", func() {
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "BOOT-INF", "classpath.idx"), []byte(`
 - "test-jar.jar"
 - "spring-graalvm-native-0.8.6-xxxxxx.jar"
 `), 0644)).To(Succeed())

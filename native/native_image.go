@@ -20,12 +20,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"github.com/paketo-buildpacks/native-image/v5/native/slices"
-	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/paketo-buildpacks/native-image/v5/native/slices"
 
 	"github.com/buildpacks/libcnb"
 	"github.com/magiconair/properties"
@@ -143,7 +142,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	}
 
 	n.Logger.Header("Removing bytecode")
-	cs, err := ioutil.ReadDir(n.ApplicationPath)
+	cs, err := os.ReadDir(n.ApplicationPath)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to list children of %s\n%w", n.ApplicationPath, err)
 	}
@@ -154,22 +153,8 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		}
 	}
 
-	src := filepath.Join(layer.Path, startClass)
-	in, err := os.Open(src)
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", filepath.Join(layer.Path, startClass), err)
-	}
-	defer in.Close()
-
-	dst := filepath.Join(n.ApplicationPath, startClass)
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to open %s\n%w", dst, err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to copy\n%w", err)
+	if err := copyFilesFromLayer(layer.Path, startClass, n.ApplicationPath); err != nil {
+		return libcnb.Layer{}, fmt.Errorf("unable to copy files from layer\n%w", err)
 	}
 
 	return layer, nil
@@ -224,4 +209,43 @@ func (n NativeImage) ProcessArguments(layer libcnb.Layer) ([]string, string, err
 
 func (NativeImage) Name() string {
 	return "native-image"
+}
+
+// copy the main file & any `*.so` files also in the layer to the application path
+func copyFilesFromLayer(layerPath string, execName string, appPath string) error {
+	files, err := os.ReadDir(layerPath)
+	if err != nil {
+		return fmt.Errorf("unable to list files on layer %s\n%w", layerPath, err)
+	}
+
+	for _, file := range files {
+		if file.Type().IsRegular() && (file.Name() == execName) {
+			src := filepath.Join(layerPath, file.Name())
+			dst := filepath.Join(appPath, file.Name())
+
+			if err := copyFile(src, dst); err != nil {
+				return fmt.Errorf("unable to copy %s to %s\n%w", src, dst, err)
+			}
+		}
+		if file.Type().IsRegular() && (strings.HasSuffix(file.Name(), ".so")) {
+			src := filepath.Join(layerPath, file.Name())
+			dst := filepath.Join(appPath, file.Name())
+
+			if err := copyFile(src, dst); err != nil {
+				return fmt.Errorf("unable to copy %s to %s\n%w", src, dst, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func copyFile(src string, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("unable to open %s\n%w", src, err)
+	}
+	defer in.Close()
+
+	return sherpa.CopyFile(in, dst)
 }
