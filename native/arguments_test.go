@@ -18,7 +18,6 @@ package native_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,13 +39,8 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
-		var err error
-
-		ctx.Application.Path, err = ioutil.TempDir("", "native-image-application")
-		Expect(err).NotTo(HaveOccurred())
-
-		ctx.Layers.Path, err = ioutil.TempDir("", "native-image-layers")
-		Expect(err).NotTo(HaveOccurred())
+		ctx.Application.Path = t.TempDir()
+		ctx.Layers.Path = t.TempDir()
 	})
 
 	it.After(func() {
@@ -126,10 +120,10 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 	context("user arguments from file", func() {
 		it.Before(func() {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff.txt"), []byte("more stuff"), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`before -jar "more stuff.jar" after -other="my path"`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt"), []byte(`stuff -jar stuff.jar after`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "override.txt"), []byte(`one=output`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff.txt"), []byte("more stuff"), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`before -jar "more stuff.jar" after -other="my path"`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt"), []byte(`stuff -jar stuff.jar after`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "override.txt"), []byte(`one=output`), 0644)).To(Succeed())
 		})
 
 		it("has none", func() {
@@ -146,7 +140,7 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(startClass).To(Equal(""))
 			Expect(args).To(HaveLen(4))
-			Expect(args).To(Equal([]string{"one", "two", "three", fmt.Sprintf("@%s",filepath.Join(ctx.Application.Path,"target/more-stuff.txt"))}))
+			Expect(args).To(Equal([]string{"one", "two", "three", fmt.Sprintf("@%s", filepath.Join(ctx.Application.Path, "target/more-stuff.txt"))}))
 		})
 
 		it("works with quotes in the file", func() {
@@ -158,7 +152,7 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			Expect(startClass).To(Equal(""))
 			Expect(args).To(HaveLen(4))
 			Expect(args).To(Equal([]string{"one", "two", "three", fmt.Sprintf("@%s", filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))}))
-			bits, err := ioutil.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))
+			bits, err := os.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(bits)).To(Equal("before after -other=\"my path\""))
 		})
@@ -170,9 +164,9 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(args).To(HaveLen(1))
 			Expect(args).To(Equal([]string{
-				fmt.Sprintf("@%s",filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt")),
+				fmt.Sprintf("@%s", filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt")),
 			}))
-			bits, err := ioutil.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-class.txt"))
+			bits, err := os.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-class.txt"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(bits)).To(Equal("after"))
 		})
@@ -254,9 +248,9 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 	context("jar file", func() {
 		it.Before(func() {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "found.jar"), []byte{}, 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "a.two"), []byte{}, 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "target", "b.two"), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "found.jar"), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "a.two"), []byte{}, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "b.two"), []byte{}, 0644)).To(Succeed())
 		})
 
 		it("adds arguments", func() {
