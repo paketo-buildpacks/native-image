@@ -18,6 +18,7 @@ package native
 
 import (
 	"fmt"
+
 	"github.com/buildpacks/libcnb"
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
@@ -124,6 +125,8 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 				})
 			}
 		}
+	} else {
+		d.Logger.Infof("BP_NATIVE_IMAGE environment variable was not set to true, %s will not be required", PlanEntryNativeImage)
 	}
 
 	if d.upxCompressionEnabled(cr) {
@@ -149,6 +152,5 @@ func (d Detect) nativeImageEnabled(cr libpak.ConfigurationResolver) (bool, error
 	if _, ok := cr.Resolve(ConfigNativeImage); ok {
 		return sherpa.ResolveBoolErr(ConfigNativeImage)
 	}
-	_, ok := cr.Resolve(DeprecatedConfigNativeImage)
-	return ok, nil
+	return sherpa.ResolveBoolErr(DeprecatedConfigNativeImage)
 }

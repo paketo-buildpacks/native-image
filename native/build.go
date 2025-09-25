@@ -49,6 +49,21 @@ type Build struct {
 }
 
 func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
+	cr, err := libpak.NewConfigurationResolver(context.Buildpack, nil) // so it doesn't print the configuration
+	if err != nil {
+		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
+	}
+
+	// Check if BP_NATIVE_IMAGE or BP_BOOT_NATIVE_IMAGE are specifically set to false then we skip the build
+	_, runNativeImageSet := cr.Resolve(ConfigNativeImage)
+	_, runDeprecatedNativeImageSet := cr.Resolve(DeprecatedConfigNativeImage)
+	if runNativeImageSet || runDeprecatedNativeImageSet {
+		runNativeImageBuild := sherpa.ResolveBool(ConfigNativeImage) || sherpa.ResolveBool(DeprecatedConfigNativeImage)
+		if !runNativeImageBuild {
+			return libcnb.NewBuildResult(), nil
+		}
+	}
+
 	b.Logger.Title(context.Buildpack)
 	result := libcnb.NewBuildResult()
 
@@ -57,7 +72,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to read manifest in %s\n%w", context.Application.Path, err)
 	}
 
-	cr, err := libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
+	cr, err = libpak.NewConfigurationResolver(context.Buildpack, &b.Logger)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create configuration resolver\n%w", err)
 	}
