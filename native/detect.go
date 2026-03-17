@@ -36,6 +36,8 @@ const (
 	PlanEntryJVMApplication     = "jvm-application"
 	PlanEntrySpringBoot         = "spring-boot"
 	PlanEntryUpx                = "upx"
+
+	ConfigNativeImageIncludeFiles = "BP_NATIVE_IMAGE_INCLUDE_FILES"
 )
 
 type Detect struct {

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/paketo-buildpacks/libpak/sherpa"
 
@@ -110,6 +111,16 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
+	var includeFiles []string
+	if includeFilesStr, ok := cr.Resolve(ConfigNativeImageIncludeFiles); ok && includeFilesStr != "" {
+		for _, pattern := range strings.Fields(includeFilesStr) {
+			if _, err := filepath.Match(pattern, ""); err != nil {
+				return libcnb.BuildResult{}, fmt.Errorf("invalid glob pattern in %s: %s\n%w", ConfigNativeImageIncludeFiles, pattern, err)
+			}
+			includeFiles = append(includeFiles, pattern)
+		}
+	}
+
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
 	if !ok {
 		compressor = CompressorNone
@@ -120,7 +131,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, jarFilePattern, manifest, context.StackID)
+	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, includeFiles, jarFilePattern, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}

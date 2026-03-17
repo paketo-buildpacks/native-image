@@ -66,7 +66,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "META-INF"), 0755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte{}, 0644)).To(Succeed())
 
-		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
+		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
 		nativeImage.Logger = bard.NewLogger(io.Discard)
 		Expect(err).NotTo(HaveOccurred())
 		nativeImage.Executor = executor
@@ -179,7 +179,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
 			Expect(os.WriteFile(argsFile, []byte(`test-argument-1 test-argument-2`), 0644)).To(Succeed())
 
-			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", "", props, ctx.StackID)
+			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executor
@@ -207,7 +207,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		it("contributes native image with --force-fallback", func() {
 			executorForceFallback := &mocks.Executor{}
-			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--force-fallback test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--force-fallback test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executorForceFallback
@@ -252,7 +252,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		it("contributes native image with --auto-fallback", func() {
 			executorAutoFallback := &mocks.Executor{}
-			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--auto-fallback test-argument-1 test-argument-2", "", "none", "", props, ctx.StackID)
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--auto-fallback test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executorAutoFallback
@@ -419,6 +419,110 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 				"test-start-class",
 			}))
 			Expect(execution.Dir).To(Equal(layer.Path))
+		})
+	})
+
+	context("include files", func() {
+		it("preserves a directory matching include pattern", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "dynatrace", "agent"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "config.ini"), []byte("test"), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"dynatrace"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "config.ini")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "BOOT-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "META-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
+		})
+
+		it("preserves files matching a glob pattern", func() {
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "agent.conf"), []byte("config"), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"*.conf"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "agent.conf")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "fixture-marker")).ToNot(BeAnExistingFile())
+		})
+
+		it("preserves multiple patterns", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "dynatrace"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "agent.conf"), []byte("config"), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"dynatrace", "*.conf"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "agent.conf")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "fixture-marker")).ToNot(BeAnExistingFile())
+		})
+
+		it("removes everything when include files is empty", func() {
+			nativeImage.IncludeFiles = nil
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "BOOT-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "META-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "fixture-marker")).ToNot(BeAnExistingFile())
+			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
+		})
+
+		it("extracts nested directory to application root", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target", "dynatrace", "agent"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "dynatrace", "agent", "config.json"), []byte(`{"id":"test"}`), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"target/dynatrace"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "target")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "config.json")).To(BeARegularFile())
+
+			data, err := os.ReadFile(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "config.json"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(data)).To(Equal(`{"id":"test"}`))
+
+			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
+		})
+
+		it("handles mixed top-level and nested patterns", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target", "dynatrace"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "agent.conf"), []byte("config"), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"target/dynatrace", "*.conf"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "agent.conf")).To(BeARegularFile())
+			Expect(filepath.Join(ctx.Application.Path, "target")).ToNot(BeADirectory())
+		})
+
+		it("handles nested pattern with glob", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target", "dt-agent-v1"), 0755)).To(Succeed())
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target", "dt-agent-v2"), 0755)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"target/dt-agent-*"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "dt-agent-v1")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "dt-agent-v2")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "target")).ToNot(BeADirectory())
 		})
 	})
 }
