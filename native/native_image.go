@@ -260,6 +260,38 @@ func splitPatterns(patterns []string) (topLevel []string, nested []string) {
 	return
 }
 
+// computeSavePath determines the relative path under the temp directory where
+// a matched file should be saved. For patterns ending with * or ** (wildcard
+// glob), it preserves the parent directory. For other patterns, it strips
+// leading container directories.
+func ComputeSavePath(pattern string, relPath string) string {
+	parts := strings.Split(pattern, "/")
+	lastPart := parts[len(parts)-1]
+
+	var stripCount int
+	if lastPart == "*" || lastPart == "**" {
+		// Wildcard glob: preserve parent dir as part of save path
+		// "dynatrace/**" → strip 0, save "dynatrace/agent"
+		// "a/b/dynatrace/**" → strip 2, save "dynatrace/agent"
+		stripCount = len(parts) - 2
+		if stripCount < 0 {
+			stripCount = 0
+		}
+	} else {
+		// Specific pattern or literal: strip container directories
+		// "target/dynatrace" → strip 1, save "dynatrace"
+		// "target/dt-agent-*" → strip 1, save "dt-agent-v1"
+		stripCount = len(parts) - 1
+	}
+
+	relParts := strings.Split(relPath, "/")
+	if stripCount >= len(relParts) {
+		stripCount = len(relParts) - 1
+	}
+
+	return filepath.Join(relParts[stripCount:]...)
+}
+
 // saveNestedIncludes moves directories matching nested patterns (e.g. "target/dynatrace")
 // out of the application path into a temporary directory before bytecode removal.
 // Returns the temp directory path (empty string if nothing was saved).
@@ -284,8 +316,15 @@ func saveNestedIncludes(appPath string, patterns []string, logger bard.Logger) (
 				}
 			}
 
-			baseName := filepath.Base(match)
-			dst := filepath.Join(savedDir, baseName)
+			relPath, err := filepath.Rel(appPath, match)
+			if err != nil {
+				return "", fmt.Errorf("unable to compute relative path for %s\n%w", match, err)
+			}
+			savePath := ComputeSavePath(pattern, relPath)
+			dst := filepath.Join(savedDir, savePath)
+			if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+				return "", fmt.Errorf("unable to create directory for %s\n%w", dst, err)
+			}
 			logger.Bodyf("Saving %s for inclusion", pattern)
 			if err := moveAcrossDevices(match, dst); err != nil {
 				return "", fmt.Errorf("unable to save %s to %s\n%w", match, dst, err)

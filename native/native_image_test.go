@@ -524,5 +524,47 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(filepath.Join(ctx.Application.Path, "dt-agent-v2")).To(BeADirectory())
 			Expect(filepath.Join(ctx.Application.Path, "target")).ToNot(BeADirectory())
 		})
+
+		it("preserves top-level directory with wildcard glob pattern", func() {
+			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "conf"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "conf", "config.json"), []byte(`{"id":"test"}`), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"dynatrace/**"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace")).To(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "conf", "config.json")).To(BeARegularFile())
+
+			data, err := os.ReadFile(filepath.Join(ctx.Application.Path, "dynatrace", "agent", "conf", "config.json"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(data)).To(Equal(`{"id":"test"}`))
+
+			Expect(filepath.Join(ctx.Application.Path, "BOOT-INF")).ToNot(BeADirectory())
+			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
+		})
+	})
+
+	context("computeSavePath", func() {
+		it("strips container for literal pattern", func() {
+			Expect(native.ComputeSavePath("target/dynatrace", "target/dynatrace")).To(Equal("dynatrace"))
+		})
+
+		it("strips container for specific glob pattern", func() {
+			Expect(native.ComputeSavePath("target/dt-agent-*", "target/dt-agent-v1")).To(Equal("dt-agent-v1"))
+		})
+
+		it("preserves parent for wildcard ** pattern", func() {
+			Expect(native.ComputeSavePath("dynatrace/**", "dynatrace/agent")).To(Equal(filepath.Join("dynatrace", "agent")))
+		})
+
+		it("preserves parent for wildcard * pattern", func() {
+			Expect(native.ComputeSavePath("dynatrace/*", "dynatrace/agent")).To(Equal(filepath.Join("dynatrace", "agent")))
+		})
+
+		it("strips deep container for wildcard ** pattern", func() {
+			Expect(native.ComputeSavePath("a/b/dynatrace/**", "a/b/dynatrace/agent")).To(Equal(filepath.Join("dynatrace", "agent")))
+		})
 	})
 }
