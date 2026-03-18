@@ -238,7 +238,7 @@ Start-Class: test-start-class
 
 	context("BP_NATIVE_IMAGE_INCLUDE_FILES", func() {
 		it.Before(func() {
-			t.Setenv("BP_NATIVE_IMAGE_INCLUDE_FILES", "dynatrace *.conf")
+			t.Setenv("BP_NATIVE_IMAGE_INCLUDE_FILES", "dynatrace:*.conf")
 		})
 
 		it("resolves include files and passes to NativeImage", func() {
@@ -254,6 +254,56 @@ Start-Class: test-start-class
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(result.Layers[0].(native.NativeImage).IncludeFiles).To(Equal([]string{"dynatrace", "*.conf"}))
+		})
+	})
+
+	context("invalid BP_NATIVE_IMAGE_INCLUDE_FILES", func() {
+		it("returns error for invalid glob pattern", func() {
+			t.Setenv("BP_NATIVE_IMAGE_INCLUDE_FILES", "[invalid")
+
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Boot-Layers-Index: layers.idx
+Start-Class: test-start-class
+`), 0644)).To(Succeed())
+
+			_, err := build.Build(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid glob pattern"))
+		})
+
+		it("returns error for nested path pattern", func() {
+			t.Setenv("BP_NATIVE_IMAGE_INCLUDE_FILES", "target/dynatrace")
+
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Boot-Layers-Index: layers.idx
+Start-Class: test-start-class
+`), 0644)).To(Succeed())
+
+			_, err := build.Build(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("nested paths not supported"))
+		})
+
+		it("returns error for absolute path pattern", func() {
+			t.Setenv("BP_NATIVE_IMAGE_INCLUDE_FILES", "/etc/passwd")
+
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Boot-Layers-Index: layers.idx
+Start-Class: test-start-class
+`), 0644)).To(Succeed())
+
+			_, err := build.Build(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("absolute paths not allowed"))
 		})
 	})
 

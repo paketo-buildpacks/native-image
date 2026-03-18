@@ -19,13 +19,10 @@ package native
 import (
 	"bytes"
 	"crypto/sha256"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/paketo-buildpacks/native-image/v5/native/slices"
 
@@ -65,11 +62,6 @@ func NewNativeImage(applicationPath string, arguments string, argumentsFile stri
 }
 
 func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
-	n.Logger.Header("DEBUG: Application path contents before native-image build")
-	if err := debugListDir(n.ApplicationPath, n.ApplicationPath, n.Logger, 0); err != nil {
-		n.Logger.Bodyf("DEBUG: unable to list application path: %v", err)
-	}
-
 	files, err := sherpa.NewFileListing(n.ApplicationPath)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to create file listing for %s\n%w", n.ApplicationPath, err)
@@ -154,19 +146,12 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 
 	n.Logger.Header("Removing bytecode")
 
-	topLevelPatterns, nestedPatterns := splitPatterns(n.IncludeFiles)
-
-	savedDir, err := saveNestedIncludes(n.ApplicationPath, nestedPatterns, n.Logger)
-	if err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to save included files\n%w", err)
-	}
-
 	cs, err := os.ReadDir(n.ApplicationPath)
 	if err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to list children of %s\n%w", n.ApplicationPath, err)
 	}
 	for _, c := range cs {
-		if shouldPreserve(c.Name(), topLevelPatterns) {
+		if shouldPreserve(c.Name(), n.IncludeFiles) {
 			n.Logger.Bodyf("Preserving %s", c.Name())
 			continue
 		}
@@ -178,10 +163,6 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 
 	if err := copyFilesFromLayer(layer.Path, startClass, n.ApplicationPath); err != nil {
 		return libcnb.Layer{}, fmt.Errorf("unable to copy files from layer\n%w", err)
-	}
-
-	if err := restoreNestedIncludes(savedDir, n.ApplicationPath, n.Logger); err != nil {
-		return libcnb.Layer{}, fmt.Errorf("unable to restore included files\n%w", err)
 	}
 
 	return layer, nil
@@ -247,117 +228,6 @@ func shouldPreserve(name string, patterns []string) bool {
 	return false
 }
 
-// splitPatterns separates include patterns into top-level (e.g. "dynatrace")
-// and nested (e.g. "target/dynatrace") based on whether they contain a path separator.
-func splitPatterns(patterns []string) (topLevel []string, nested []string) {
-	for _, p := range patterns {
-		if strings.Contains(p, "/") {
-			nested = append(nested, p)
-		} else {
-			topLevel = append(topLevel, p)
-		}
-	}
-	return
-}
-
-// computeSavePath determines the relative path under the temp directory where
-// a matched file should be saved. For patterns ending with * or ** (wildcard
-// glob), it preserves the parent directory. For other patterns, it strips
-// leading container directories.
-func ComputeSavePath(pattern string, relPath string) string {
-	parts := strings.Split(pattern, "/")
-	lastPart := parts[len(parts)-1]
-
-	var stripCount int
-	if lastPart == "*" || lastPart == "**" {
-		// Wildcard glob: preserve parent dir as part of save path
-		// "dynatrace/**" → strip 0, save "dynatrace/agent"
-		// "a/b/dynatrace/**" → strip 2, save "dynatrace/agent"
-		stripCount = len(parts) - 2
-		if stripCount < 0 {
-			stripCount = 0
-		}
-	} else {
-		// Specific pattern or literal: strip container directories
-		// "target/dynatrace" → strip 1, save "dynatrace"
-		// "target/dt-agent-*" → strip 1, save "dt-agent-v1"
-		stripCount = len(parts) - 1
-	}
-
-	relParts := strings.Split(relPath, "/")
-	if stripCount >= len(relParts) {
-		stripCount = len(relParts) - 1
-	}
-
-	return filepath.Join(relParts[stripCount:]...)
-}
-
-// saveNestedIncludes moves directories matching nested patterns (e.g. "target/dynatrace")
-// out of the application path into a temporary directory before bytecode removal.
-// Returns the temp directory path (empty string if nothing was saved).
-func saveNestedIncludes(appPath string, patterns []string, logger bard.Logger) (string, error) {
-	if len(patterns) == 0 {
-		return "", nil
-	}
-
-	var savedDir string
-	for _, pattern := range patterns {
-		fullPattern := filepath.Join(appPath, pattern)
-		matches, err := filepath.Glob(fullPattern)
-		if err != nil {
-			return "", fmt.Errorf("unable to glob pattern %s\n%w", pattern, err)
-		}
-
-		for _, match := range matches {
-			if savedDir == "" {
-				savedDir, err = os.MkdirTemp("", "native-image-include-*")
-				if err != nil {
-					return "", fmt.Errorf("unable to create temp directory\n%w", err)
-				}
-			}
-
-			relPath, err := filepath.Rel(appPath, match)
-			if err != nil {
-				return "", fmt.Errorf("unable to compute relative path for %s\n%w", match, err)
-			}
-			savePath := ComputeSavePath(pattern, relPath)
-			dst := filepath.Join(savedDir, savePath)
-			if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-				return "", fmt.Errorf("unable to create directory for %s\n%w", dst, err)
-			}
-			logger.Bodyf("Saving %s for inclusion", pattern)
-			if err := moveAcrossDevices(match, dst); err != nil {
-				return "", fmt.Errorf("unable to save %s to %s\n%w", match, dst, err)
-			}
-		}
-	}
-
-	return savedDir, nil
-}
-
-// restoreNestedIncludes moves previously saved directories back to the application root.
-func restoreNestedIncludes(savedDir string, appPath string, logger bard.Logger) error {
-	if savedDir == "" {
-		return nil
-	}
-	defer os.RemoveAll(savedDir)
-
-	entries, err := os.ReadDir(savedDir)
-	if err != nil {
-		return fmt.Errorf("unable to read saved includes from %s\n%w", savedDir, err)
-	}
-
-	for _, entry := range entries {
-		src := filepath.Join(savedDir, entry.Name())
-		dst := filepath.Join(appPath, entry.Name())
-		logger.Bodyf("Restoring %s", entry.Name())
-		if err := moveAcrossDevices(src, dst); err != nil {
-			return fmt.Errorf("unable to restore %s to %s\n%w", src, dst, err)
-		}
-	}
-
-	return nil
-}
 
 // copy the main file & any `*.so` files also in the layer to the application path
 func copyFilesFromLayer(layerPath string, execName string, appPath string) error {
@@ -386,108 +256,6 @@ func copyFilesFromLayer(layerPath string, execName string, appPath string) error
 	}
 
 	return nil
-}
-
-func debugListDir(root string, dir string, logger bard.Logger, depth int) error {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	for _, e := range entries {
-		rel, _ := filepath.Rel(root, filepath.Join(dir, e.Name()))
-		prefix := strings.Repeat("  ", depth)
-		if e.IsDir() {
-			logger.Bodyf("%s%s/", prefix, rel)
-			if depth < 3 {
-				if err := debugListDir(root, filepath.Join(dir, e.Name()), logger, depth+1); err != nil {
-					return err
-				}
-			}
-		} else {
-			logger.Bodyf("%s%s", prefix, rel)
-		}
-	}
-	return nil
-}
-
-// moveAcrossDevices attempts os.Rename first; if it fails with EXDEV
-// (cross-device link), it falls back to a recursive copy then delete.
-func moveAcrossDevices(src, dst string) error {
-	err := os.Rename(src, dst)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, syscall.EXDEV) {
-		return err
-	}
-
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	if info.IsDir() {
-		if err := copyDirRecursive(src, dst); err != nil {
-			return err
-		}
-	} else {
-		if err := copyFile(src, dst); err != nil {
-			return err
-		}
-	}
-
-	return os.RemoveAll(src)
-}
-
-func copyDirRecursive(src, dst string) error {
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
-		return err
-	}
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			if err := copyDirRecursive(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			info, err := entry.Info()
-			if err != nil {
-				return err
-			}
-			if err := copyFileWithMode(srcPath, dstPath, info.Mode()); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func copyFileWithMode(src, dst string, mode fs.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("unable to open %s\n%w", src, err)
-	}
-	defer in.Close()
-
-	if err := sherpa.CopyFile(in, dst); err != nil {
-		return err
-	}
-
-	return os.Chmod(dst, mode)
 }
 
 func copyFile(src string, dst string) error {

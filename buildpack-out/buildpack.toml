@@ -66,7 +66,7 @@ arch = "arm64"
 
   [[metadata.configurations]]
     name        = "BP_NATIVE_IMAGE_INCLUDE_FILES"
-    description = "space-separated list of glob patterns for files or directories to preserve during bytecode removal"
+    description = "colon-separated list of glob patterns for top-level files or directories to preserve during bytecode removal"
     build       = true
 
 [[stacks]]

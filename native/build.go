@@ -113,7 +113,17 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 
 	var includeFiles []string
 	if includeFilesStr, ok := cr.Resolve(ConfigNativeImageIncludeFiles); ok && includeFilesStr != "" {
-		for _, pattern := range strings.Fields(includeFilesStr) {
+		for _, pattern := range strings.Split(includeFilesStr, ":") {
+			pattern = strings.TrimSpace(pattern)
+			if pattern == "" {
+				continue
+			}
+			if filepath.IsAbs(pattern) {
+				return libcnb.BuildResult{}, fmt.Errorf("absolute paths not allowed in %s: %s", ConfigNativeImageIncludeFiles, pattern)
+			}
+			if strings.Contains(pattern, "/") {
+				return libcnb.BuildResult{}, fmt.Errorf("nested paths not supported in %s: %s (use top-level patterns only)", ConfigNativeImageIncludeFiles, pattern)
+			}
 			if _, err := filepath.Match(pattern, ""); err != nil {
 				return libcnb.BuildResult{}, fmt.Errorf("invalid glob pattern in %s: %s\n%w", ConfigNativeImageIncludeFiles, pattern, err)
 			}
