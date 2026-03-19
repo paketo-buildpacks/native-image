@@ -121,7 +121,8 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 			if filepath.IsAbs(pattern) {
 				return libcnb.BuildResult{}, fmt.Errorf("absolute paths not allowed in %s: %s", ConfigNativeImageIncludeFiles, pattern)
 			}
-			if strings.Contains(pattern, "/") {
+			normalized := filepath.ToSlash(pattern)
+			if strings.Contains(normalized, "/") {
 				return libcnb.BuildResult{}, fmt.Errorf("nested paths not supported in %s: %s (use top-level patterns only)", ConfigNativeImageIncludeFiles, pattern)
 			}
 			if _, err := filepath.Match(pattern, ""); err != nil {
