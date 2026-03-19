@@ -234,7 +234,6 @@ func shouldPreserve(name string, patterns []string) bool {
 	return false
 }
 
-
 // copy the main file & any `*.so` files also in the layer to the application path
 func copyFilesFromLayer(layerPath string, execName string, appPath string) error {
 	files, err := os.ReadDir(layerPath)
