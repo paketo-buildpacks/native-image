@@ -223,9 +223,7 @@ func shouldPreserve(name string, patterns []string) bool {
 	for _, pattern := range patterns {
 		matched, err := filepath.Match(pattern, name)
 		if err != nil {
-			// Warn about invalid glob patterns instead of silently ignoring them.
-			fmt.Fprintf(os.Stderr, "warning: invalid glob pattern %q in shouldPreserve: %v\n", pattern, err)
-			return false
+			continue
 		}
 		if matched {
 			return true
