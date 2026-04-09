@@ -111,25 +111,14 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	var includeFiles []string
-	if includeFilesStr, ok := cr.Resolve(ConfigNativeImageIncludeFiles); ok && includeFilesStr != "" {
-		for _, pattern := range strings.Split(includeFilesStr, ":") {
-			pattern = strings.TrimSpace(pattern)
-			if pattern == "" {
-				continue
-			}
-			if filepath.IsAbs(pattern) {
-				return libcnb.BuildResult{}, fmt.Errorf("absolute paths not allowed in %s: %s", ConfigNativeImageIncludeFiles, pattern)
-			}
-			normalized := filepath.ToSlash(pattern)
-			if strings.Contains(normalized, "/") {
-				return libcnb.BuildResult{}, fmt.Errorf("nested paths not supported in %s: %s (use top-level patterns only)", ConfigNativeImageIncludeFiles, pattern)
-			}
-			if _, err := filepath.Match(pattern, ""); err != nil {
-				return libcnb.BuildResult{}, fmt.Errorf("invalid glob pattern in %s: %s\n%w", ConfigNativeImageIncludeFiles, pattern, err)
-			}
-			includeFiles = append(includeFiles, pattern)
-		}
+	includeFiles, err := resolveGlobPatterns(cr, ConfigIncludeFiles)
+	if err != nil {
+		return libcnb.BuildResult{}, err
+	}
+
+	excludeFiles, err := resolveGlobPatterns(cr, ConfigExcludeFiles)
+	if err != nil {
+		return libcnb.BuildResult{}, err
 	}
 
 	compressor, ok := cr.Resolve(BinaryCompressionMethod)
@@ -142,7 +131,7 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		}
 	}
 
-	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, includeFiles, jarFilePattern, manifest, context.StackID)
+	n, err := NewNativeImage(context.Application.Path, args, argsFile, compressor, includeFiles, excludeFiles, jarFilePattern, manifest, context.StackID)
 	if err != nil {
 		return libcnb.BuildResult{}, fmt.Errorf("unable to create native image layer\n%w", err)
 	}
@@ -200,4 +189,26 @@ func findStartOrMainClass(manifest *properties.Properties, appPath, jarFilePatte
 	}
 
 	return "", fmt.Errorf("unable to find a suitable startClass")
+}
+
+func resolveGlobPatterns(cr libpak.ConfigurationResolver, configKey string) ([]string, error) {
+	value, ok := cr.Resolve(configKey)
+	if !ok || value == "" {
+		return nil, nil
+	}
+
+	var patterns []string
+	for _, pattern := range strings.Split(value, ":") {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+
+		if _, err := filepath.Match(pattern, ""); err != nil {
+			return nil, fmt.Errorf("invalid glob pattern in %s: %s\n%w", configKey, pattern, err)
+		}
+		patterns = append(patterns, pattern)
+	}
+
+	return patterns, nil
 }

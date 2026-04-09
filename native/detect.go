@@ -37,7 +37,8 @@ const (
 	PlanEntrySpringBoot         = "spring-boot"
 	PlanEntryUpx                = "upx"
 
-	ConfigNativeImageIncludeFiles = "BP_NATIVE_IMAGE_INCLUDE_FILES"
+	ConfigIncludeFiles = "BP_INCLUDE_FILES"
+	ConfigExcludeFiles = "BP_EXCLUDE_FILES"
 )
 
 type Detect struct {

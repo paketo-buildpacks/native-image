@@ -66,7 +66,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "META-INF"), 0755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte{}, 0644)).To(Succeed())
 
-		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
+		nativeImage, err = native.NewNativeImage(ctx.Application.Path, "test-argument-1 test-argument-2", "", "none", nil, nil, "", props, ctx.StackID)
 		nativeImage.Logger = bard.NewLogger(io.Discard)
 		Expect(err).NotTo(HaveOccurred())
 		nativeImage.Executor = executor
@@ -179,7 +179,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.MkdirAll(filepath.Join(ctx.Application.Path, "target"), 0755)).To(Succeed())
 			Expect(os.WriteFile(argsFile, []byte(`test-argument-1 test-argument-2`), 0644)).To(Succeed())
 
-			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", nil, "", props, ctx.StackID)
+			nativeImage, err := native.NewNativeImage(ctx.Application.Path, "", argsFile, "none", nil, nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executor
@@ -207,7 +207,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		it("contributes native image with --force-fallback", func() {
 			executorForceFallback := &mocks.Executor{}
-			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--force-fallback test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--force-fallback test-argument-1 test-argument-2", "", "none", nil, nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executorForceFallback
@@ -252,7 +252,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 		it("contributes native image with --auto-fallback", func() {
 			executorAutoFallback := &mocks.Executor{}
-			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--auto-fallback test-argument-1 test-argument-2", "", "none", nil, "", props, ctx.StackID)
+			nativeImage, err = native.NewNativeImage(ctx.Application.Path, "--auto-fallback test-argument-1 test-argument-2", "", "none", nil, nil, "", props, ctx.StackID)
 			nativeImage.Logger = bard.NewLogger(io.Discard)
 			Expect(err).NotTo(HaveOccurred())
 			nativeImage.Executor = executorAutoFallback
@@ -477,5 +477,36 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 			Expect(filepath.Join(ctx.Application.Path, "test-start-class")).To(BeARegularFile())
 		})
 
+	})
+
+	context("exclude files", func() {
+		it("does not preserve files when include patterns are empty", func() {
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "agent.conf"), []byte("config"), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "keep.txt"), []byte("keep"), 0644)).To(Succeed())
+
+			nativeImage.ExcludeFiles = []string{"*.conf"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "agent.conf")).ToNot(BeAnExistingFile())
+			Expect(filepath.Join(ctx.Application.Path, "keep.txt")).ToNot(BeAnExistingFile())
+		})
+	})
+
+	context("include and exclude files", func() {
+		it("allows exclude patterns to override include patterns", func() {
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "agent.conf"), []byte("config"), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "notes.txt"), []byte("notes"), 0644)).To(Succeed())
+
+			nativeImage.IncludeFiles = []string{"*.conf", "*.txt"}
+			nativeImage.ExcludeFiles = []string{"*.conf"}
+
+			_, err := nativeImage.Contribute(layer)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(filepath.Join(ctx.Application.Path, "agent.conf")).ToNot(BeAnExistingFile())
+			Expect(filepath.Join(ctx.Application.Path, "notes.txt")).To(BeARegularFile())
+		})
 	})
 }

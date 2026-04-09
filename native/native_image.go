@@ -40,6 +40,7 @@ type NativeImage struct {
 	ArgumentsFile   string
 	Executor        effect.Executor
 	IncludeFiles    []string
+	ExcludeFiles    []string
 	JarFilePattern  string
 	Logger          bard.Logger
 	Manifest        *properties.Properties
@@ -47,13 +48,14 @@ type NativeImage struct {
 	Compressor      string
 }
 
-func NewNativeImage(applicationPath string, arguments string, argumentsFile string, compressor string, includeFiles []string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
+func NewNativeImage(applicationPath string, arguments string, argumentsFile string, compressor string, includeFiles []string, excludeFiles []string, jarFilePattern string, manifest *properties.Properties, stackID string) (NativeImage, error) {
 	return NativeImage{
 		ApplicationPath: applicationPath,
 		Arguments:       arguments,
 		ArgumentsFile:   argumentsFile,
 		Executor:        effect.NewExecutor(),
 		IncludeFiles:    includeFiles,
+		ExcludeFiles:    excludeFiles,
 		JarFilePattern:  jarFilePattern,
 		Manifest:        manifest,
 		StackID:         stackID,
@@ -93,6 +95,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		"compression":   n.Compressor,
 		"version-hash":  nativeBinaryHash,
 		"include-files": n.IncludeFiles,
+		"exclude-files": n.ExcludeFiles,
 	}, libcnb.LayerTypes{
 		Cache: true,
 	})
@@ -151,7 +154,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 		return libcnb.Layer{}, fmt.Errorf("unable to list children of %s\n%w", n.ApplicationPath, err)
 	}
 	for _, c := range cs {
-		if shouldPreserve(c.Name(), n.IncludeFiles) {
+		if shouldPreserve(c.Name(), n.IncludeFiles, n.ExcludeFiles) {
 			n.Logger.Bodyf("Preserving %s", c.Name())
 			continue
 		}
@@ -219,7 +222,23 @@ func (NativeImage) Name() string {
 	return "native-image"
 }
 
-func shouldPreserve(name string, patterns []string) bool {
+func shouldPreserve(name string, includePatterns []string, excludePatterns []string) bool {
+	if len(includePatterns) == 0 {
+		return false
+	}
+
+	if !matchesAny(name, includePatterns) {
+		return false
+	}
+
+	if matchesAny(name, excludePatterns) {
+		return false
+	}
+
+	return true
+}
+
+func matchesAny(name string, patterns []string) bool {
 	for _, pattern := range patterns {
 		matched, err := filepath.Match(pattern, name)
 		if err != nil {
