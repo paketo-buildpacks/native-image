@@ -386,7 +386,7 @@ func testNativeImage(t *testing.T, context spec.G, it spec.S) {
 
 	context("tiny stack", func() {
 		it.Before(func() {
-			nativeImage.StackID = libpak.TinyStackID
+			nativeImage.StackID = libpak.BionicTinyStackID
 		})
 
 		it("contributes a static native image executable with dynamic libc", func() {

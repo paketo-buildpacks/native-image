@@ -36,8 +36,8 @@ os = "linux"
 arch = "arm64"
 
 [metadata]
-  pre-package   = "scripts/build.sh"
-  include-files = ["LICENSE", "NOTICE", "README.md", "linux/amd64/bin/build", "linux/amd64/bin/detect", "linux/amd64/bin/main", "linux/arm64/bin/build", "linux/arm64/bin/detect", "linux/arm64/bin/main", "buildpack.toml"]
+  pre-package = "scripts/build.sh --target linux/amd64 --target linux/arm64"
+  include-files = ["LICENSE", "NOTICE", "README.md", "linux/amd64/bin/build", "linux/amd64/bin/detect", "linux/amd64/bin/run", "linux/arm64/bin/build", "linux/arm64/bin/detect", "linux/arm64/bin/run", "buildpack.toml"]
 
   [[metadata.configurations]]
     name        = "BP_NATIVE_IMAGE"
