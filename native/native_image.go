@@ -107,7 +107,8 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			return libcnb.Layer{}, fmt.Errorf("error running build\n%w", err)
 		}
 
-		if n.Compressor == CompressorUpx {
+		switch n.Compressor {
+		case CompressorUpx:
 			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
 			if err := n.Executor.Execute(effect.Execution{
 				Command: "upx",
@@ -118,7 +119,7 @@ func (n NativeImage) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 			}); err != nil {
 				return libcnb.Layer{}, fmt.Errorf("error compressing\n%w", err)
 			}
-		} else if n.Compressor == CompressorGzexe {
+		case CompressorGzexe:
 			n.Logger.Bodyf("Executing %s to compress native image", n.Compressor)
 			if err := n.Executor.Execute(effect.Execution{
 				Command: "gzexe",
@@ -245,7 +246,7 @@ func copyFile(src string, dst string) error {
 	if err != nil {
 		return fmt.Errorf("unable to open %s\n%w", src, err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	return sherpa.CopyFile(in, dst)
 }
