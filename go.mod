@@ -1,6 +1,6 @@
 module github.com/paketo-buildpacks/native-image/v5
 
-go 1.27
+go 1.27.3
 
 require (
 	github.com/buildpacks/libcnb v1.30.4
