@@ -123,6 +123,8 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff.txt"), []byte("more stuff"), 0644)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-quotes.txt"), []byte(`before -jar "more stuff.jar" after -other="my path"`), 0644)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "more-stuff-class.txt"), []byte(`stuff -jar stuff.jar after`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "quarkus-native-image.args"), []byte(`--no-fallback -o app-1.0.0-runner -jar app-1.0.0-runner.jar`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "multi-value-option.args"), []byte(`--exclude-config app-1.0.0-runner ^/META-INF/.* -jar app-1.0.0-runner.jar`), 0644)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(ctx.Application.Path, "target", "override.txt"), []byte(`one=output`), 0644)).To(Succeed())
 		})
 
@@ -155,6 +157,29 @@ func testArguments(t *testing.T, context spec.G, it spec.S) {
 			bits, err := os.ReadFile(filepath.Join(ctx.Application.Path, "target/more-stuff-quotes.txt"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(bits)).To(Equal("before after -other=\"my path\""))
+		})
+
+		it("keeps the class name when it is the value of an option", func() {
+			args, _, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/quarkus-native-image.args"),
+			}.Configure(nil)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				fmt.Sprintf("@%s", filepath.Join(ctx.Application.Path, "target", "quarkus-native-image.args")),
+			}))
+			bits, err := os.ReadFile(filepath.Join(ctx.Application.Path, "target/quarkus-native-image.args"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(bits)).To(Equal("--no-fallback -o app-1.0.0-runner"))
+		})
+
+		it("keeps the class name when it is the value of an option taking several", func() {
+			_, _, err := native.UserFileArguments{
+				ArgumentsFile: filepath.Join(ctx.Application.Path, "target/multi-value-option.args"),
+			}.Configure(nil)
+			Expect(err).ToNot(HaveOccurred())
+			bits, err := os.ReadFile(filepath.Join(ctx.Application.Path, "target/multi-value-option.args"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(bits)).To(Equal("--exclude-config app-1.0.0-runner ^/META-INF/.*"))
 		})
 
 		it("removes the class name argument if found", func() {

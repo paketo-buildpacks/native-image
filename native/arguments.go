@@ -221,8 +221,10 @@ func replaceJarArguments(fileArgs []string) []string {
 		tmpArgs = append(tmpArgs, inputArg)
 	}
 
-	for _, inputArg := range tmpArgs {
-		if inputArg == className {
+	for i, inputArg := range tmpArgs {
+		// drop the image name when it repeats the jar name, but never a token following an
+		// option, which may be its value rather than the image name
+		if inputArg == className && (i == 0 || !strings.HasPrefix(tmpArgs[i-1], "-")) {
 			continue
 		}
 		modifiedArgs = append(modifiedArgs, inputArg)
