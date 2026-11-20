@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/buildpacks/libcnb v1.30.4
 	github.com/heroku/color v0.0.6
-	github.com/magiconair/properties v1.18.12
+	github.com/magiconair/properties v1.18.13
 	github.com/mattn/go-shellwords v1.0.16
 	github.com/onsi/gomega v1.44.0
 	github.com/paketo-buildpacks/libjvm v1.46.0
